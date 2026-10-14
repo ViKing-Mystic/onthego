@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OntheGO Stage 2 Automated Verification Suite</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #faf7f2; color: #182320; }
+    h1 { color: #0d828a; }
+    .test-pass { color: #15803d; font-weight: bold; }
+    .test-fail { color: #dc2626; font-weight: bold; }
+    .test-row { padding: 6px 0; border-bottom: 1px solid #e5ded2; font-size: 14px; }
+    #summary { margin-top: 20px; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🛵 OntheGO Stage 2 Test Suite</h1>
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <!-- Mock Leaflet to avoid external network requests -->
+  <script>window.L = { map: () => ({ setView: () => ({ addTo: () => {} }), fitBounds: () => {} }), tileLayer: () => ({ addTo: () => {} }), marker: () => ({ addTo: () => ({ bindPopup: () => {} }) }), polyline: () => ({ addTo: () => {} }), latLngBounds: () => ({ extend: () => {} }), icon: () => ({}) };</script>
+  
+  <!-- Load dependencies in exact order -->
+  <script src="./js/data.js"></script>
+  <script src="./js/migrations.js"></script>
+  <script src="./js/collaboration.js"></script>
+  <script src="./js/timehelper.js"></script>
+  <script src="./js/itinerary.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/expenses.js"></script>
+  <script src="./js/backups.js"></script>
+  <script src="./js/restaurants.js"></script>
+  <script src="./js/checklist.js"></script>
+  <script src="./js/wallet.js"></script>
+  <script src="./js/app.js"></script>
+
+  <script>
+    const results = [];
+    function assert(name, condition, details = "") {
+      results.push({ name, passed: !!condition, details });
+      const row = document.createElement("div");
+      row.className = "test-row";
+      row.innerHTML = `<span class="${condition ? 'test-pass' : 'test-fail'}">${condition ? '✓ PASS' : '✗ FAIL'}</span>: <b>${name}</b> ${details ? '(' + details + ')' : ''}`;
+      document.getElementById("test-results").appendChild(row);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      try {
+        // Reset state for deterministic test run
+        OntheGoApp.state = OntheGoMigrations.getFreshDefaultState();
+        OntheGoApp.saveState();
+        OntheGoCollaboration.init();
+
+        // ---------------------------------------------------------
+        // 1. TRAVELLER PERSONA & INVITATION SECURITY
+        // ---------------------------------------------------------
+        OntheGoCollaboration.switchTraveller("traveller-1");
+        assert("Active traveller set to traveller-1", OntheGoCollaboration.activeTravellerId === "traveller-1");
+        assert("Traveller-1 is recognized as owner", OntheGoCollaboration.isOwner() === true);
+        assert("Traveller-1 details correct", OntheGoCollaboration.getCurrentTraveller().name === "Vishnu");
+
+        OntheGoCollaboration.switchTraveller("traveller-2");
+        assert("Switched active traveller to traveller-2", OntheGoCollaboration.activeTravellerId === "traveller-2");
+        assert("Traveller-2 is not owner", OntheGoCollaboration.isOwner() === false);
+        assert("Traveller-2 partner is Vishnu", OntheGoCollaboration.getPartnerTraveller().name === "Vishnu");
+
+        // Switch back to owner
+        OntheGoCollaboration.switchTraveller("traveller-1");
+
+        const inviteToken = OntheGoCollaboration.generateInviteLink(7);
+        const config = OntheGoCollaboration.getCollaborationConfig();
+        assert("Invite token generated", typeof inviteToken === "string" && inviteToken.length > 10);
+        assert("6-digit access PIN generated", /^\d{6}$/.test(config.accessPin));
+        assert("Trip private by default", config.isPrivate === true);
+
+        // Test invite redemption with bad PIN
+        const badPinAttempt = OntheGoCollaboration.redeemInvite(inviteToken, "000000");
+        assert("Redemption fails with incorrect PIN", badPinAttempt.success === false);
+
+        // Test invite redemption with valid PIN
+        const goodAttempt = OntheGoCollaboration.redeemInvite(inviteToken, config.accessPin);
+        assert("Redemption succeeds with valid token & PIN", goodAttempt.success === true);
+        assert("Partner connected after redemption", OntheGoCollaboration.getCollaborationConfig().partnerConnected === true);
+
+        // Test revocation
+        OntheGoCollaboration.revokeInvite();
+        const revokedConfig = OntheGoCollaboration.getCollaborationConfig();
+        assert("Invitation status revoked", revokedConfig.inviteStatus === "revoked");
+        const tryRevoked = OntheGoCollaboration.redeemInvite(inviteToken, config.accessPin);
+        assert("Redemption rejected after revocation", tryRevoked.success === false);
+
+        // ---------------------------------------------------------
+        // 2. MINOR UNITS (PAISE) & DETERMINISTIC SPLITS
+        // ---------------------------------------------------------
+        assert("toPaise converts correctly", OntheGoExpenses.toPaise(1708) === 170800);
+        assert("toPaise handles float cents", OntheGoExpenses.toPaise(12.50) === 1250);
+        assert("formatPaise formats rupees", OntheGoExpenses.formatPaise(170800) === "₹1,708");
+
+        // Test 50/50 Equal Split with odd amount (zero leakage remainder assigned to payer)
+        const oddShares = OntheGoExpenses.calculateSplitShares(101, "equal", "traveller-1");
+        assert("Equal split sums to total (no rounding leakage)", oddShares["traveller-1"] + oddShares["traveller-2"] === 101);
+        assert("Odd 1-paisa remainder goes to payer", oddShares["traveller-1"] === 51 && oddShares["traveller-2"] === 50);
+
+        // Test Percentage Split (60% Vishnu, 40% Co-rider)
+        const pctShares = OntheGoExpenses.calculateSplitShares(100000, "percentage", "traveller-1", 0, 60);
+        assert("Percentage split 60/40 calculates exact paise", pctShares["traveller-1"] === 60000 && pctShares["traveller-2"] === 40000);
+        assert("Percentage split sums to total", pctShares["traveller-1"] + pctShares["traveller-2"] === 100000);
+
+        // Test Custom Split (₹250 Vishnu on ₹450 total -> 25000 and 20000 paise)
+        const customShares = OntheGoExpenses.calculateSplitShares(45000, "custom", "traveller-1", 25000);
+        assert("Custom split allocates exact paise", customShares["traveller-1"] === 25000 && customShares["traveller-2"] === 20000);
+
+        // Test Personal Expense (Excluded from shared debt)
+        const personalShares = OntheGoExpenses.calculateSplitShares(50000, "personal", "traveller-1");
+        assert("Personal expense leaves partner with 0 debt", personalShares["traveller-2"] === 0 && personalShares["traveller-1"] === 50000);
+
+        // ---------------------------------------------------------
+        // 3. NET SETTLEMENT SOLVER
+        // ---------------------------------------------------------
+        // Reset expenses to test settlement calculation:
+        OntheGoApp.state.expenses = [
+          {
+            id: "exp-test-1",
+            description: "Dinner paid by Vishnu",
+            amount: 2000,
+            amountPaise: 200000,
+            currency: "INR",
+            fxRate: 1.0,
+            amountInInrPaise: 200000,
+            paidBy: "traveller-1",
+            splitMethod: "equal"
+          },
+          {
+            id: "exp-test-2",
+            description: "Kayak booking paid by Co-rider",
+            amount: 700,
+            amountPaise: 70000,
+            currency: "INR",
+            fxRate: 1.0,
+            amountInInrPaise: 70000,
+            paidBy: "traveller-2",
+            splitMethod: "equal"
+          }
+        ];
+        // Vishnu paid 2000 (Co-rider owes 1000). Co-rider paid 700 (Vishnu owes 350).
+        // Net balance: Co-rider owes Vishnu (1000 - 350 = 650) -> 65,000 paise.
+        const settlement = OntheGoExpenses.calculateNetSettlement();
+        assert("Net settlement correctly calculates debtor and creditor", settlement.debtorName === "Co-rider" && settlement.creditorName === "Vishnu");
+        assert("Net settlement amount is exactly 65000 paise (₹650)", settlement.settlementAmountPaise === 65000);
+
+        // Test 1-click settlement recording
+        OntheGoExpenses.recordSettlementRepayment();
+        const balancedSettlement = OntheGoExpenses.calculateNetSettlement();
+        assert("Recorded repayment brings net balance to zero", balancedSettlement.isBalanced === true);
+
+        // ---------------------------------------------------------
+        // 4. MATERIAL CHANGE SAFEGUARD GATE
+        // ---------------------------------------------------------
+        // Fixed departure stop: Day 5 Vande Bharat departure (act-5-8)
+        const oldTrainStop = { id: "act-5-8", title: "Board Vande Bharat Express", time: "2:00 PM", isFixedCommitment: true };
+        const newTrainStopDelayed = { id: "act-5-8", title: "Board Vande Bharat Express", time: "2:30 PM", isFixedCommitment: true };
+        const materialCheck1 = OntheGoCollaboration.evaluateMaterialChange(oldTrainStop, newTrainStopDelayed);
+        assert("Changing Day 5 train departure flagged as material change", materialCheck1.isMaterial === true);
+        assert("Consequences mention Day 5 safeguard buffer", materialCheck1.consequences.includes("Day 5 train departure"));
+
+        // Confirmed accommodation stop: Calvin's Inn (act-1-3)
+        const oldHotel = { id: "act-1-3", title: "Check in at Calvin's Inn", category: "Accommodation", time: "3:30 PM", bookingStatus: "confirmed" };
+        const newHotelChanged = { id: "act-1-3", title: "Check in at Calvin's Inn", category: "Accommodation", time: "5:30 PM", bookingStatus: "confirmed" };
+        const materialCheck2 = OntheGoCollaboration.evaluateMaterialChange(oldHotel, newHotelChanged);
+        assert("Modifying confirmed accommodation schedule flagged as material", materialCheck2.isMaterial === true);
+
+        // Confirmed activity: Opulence Kayaking (act-3-1)
+        const oldKayak = { id: "act-3-1", title: "Opulence Morning Kayaking", time: "6:30 AM" };
+        const newKayak = { id: "act-3-1", title: "Opulence Morning Kayaking", time: "9:00 AM" };
+        const materialCheck3 = OntheGoCollaboration.evaluateMaterialChange(oldKayak, newKayak);
+        assert("Modifying booked Opulence Kayaking slot flagged as material", materialCheck3.isMaterial === true);
+
+        // Routine stop edit (notes or cost only) should NOT trigger material warning
+        const oldRoutine = { id: "act-1-4", title: "The Warehouse Cafe", time: "4:30 PM", notes: "Coffee" };
+        const newRoutine = { id: "act-1-4", title: "The Warehouse Cafe", time: "4:30 PM", notes: "Cheesecake & coffee" };
+        const routineCheck = OntheGoCollaboration.evaluateMaterialChange(oldRoutine, newRoutine);
+        assert("Routine stop note change does NOT require material approval", routineCheck.isMaterial === false);
+
+        // ---------------------------------------------------------
+        // 5. SHARED PREFERENCES & VETO LIST
+        // ---------------------------------------------------------
+        const prefs = OntheGoCollaboration.getPreferences();
+        assert("Preferences matrix initialized", prefs && prefs.foodAndDining && prefs.physicalTolerances);
+        assert("Pace preference present", typeof prefs.sightseeingPace === "string");
+
+        // Veto list
+        const initialVetoCount = prefs.vetoList.length;
+        OntheGoCollaboration.addVetoItem("No late night highway rides after 9 PM");
+        const updatedPrefs = OntheGoCollaboration.getPreferences();
+        assert("Added veto item successfully", updatedPrefs.vetoList.length === initialVetoCount + 1);
+
+        // ---------------------------------------------------------
+        // 6. CONSENT-BASED LOCATION SHARING
+        // ---------------------------------------------------------
+        assert("Location sharing inactive by default", OntheGoCollaboration.getLocationSharing().isActive === false);
+        OntheGoCollaboration.startLocationSharing(120);
+        assert("Location sharing activated with expiry", OntheGoCollaboration.getLocationSharing().isActive === true);
+        OntheGoCollaboration.stopLocationSharing();
+        assert("Location sharing stopped immediately", OntheGoCollaboration.getLocationSharing().isActive === false);
+
+        // Manual check-in
+        const checkInsBefore = OntheGoCollaboration.getLocationSharing().checkIns.length;
+        OntheGoCollaboration.recordCheckIn("Ernakulam Junction Scooter Hub", 9.9686, 76.2891);
+        const checkInsAfter = OntheGoCollaboration.getLocationSharing().checkIns.length;
+        assert("Manual check-in recorded", checkInsAfter === checkInsBefore + 1);
+
+        // ---------------------------------------------------------
+        // 7. CHANGE HISTORY & AUDIT LOG
+        // ---------------------------------------------------------
+        const history = OntheGoCollaboration.getChangeHistory();
+        assert("Change history log has recorded entries", Array.isArray(history) && history.length > 0);
+        const lastEntry = history[0];
+        assert("Change author attributed", typeof lastEntry.authorName === "string" && lastEntry.authorName.length > 0);
+
+        // Summary
+        const passedCount = results.filter(r => r.passed).length;
+        const totalCount = results.length;
+        const allPassed = passedCount === totalCount;
+
+        const summaryEl = document.getElementById("summary");
+        summaryEl.style.background = allPassed ? "#dcfce7" : "#fee2e2";
+        summaryEl.style.color = allPassed ? "#15803d" : "#dc2626";
+        summaryEl.innerText = `Total Tests: ${totalCount} | Passed: ${passedCount} | Failed: ${totalCount - passedCount} | Result: ${allPassed ? "100% ALL TESTS PASSED ✓" : "FAILURES DETECTED"}`;
+
+        window.STAGE2_TEST_SUMMARY = {
+          total: totalCount,
+          passed: passedCount,
+          failed: totalCount - passedCount,
+          allPassed
+        };
+      } catch (err) {
+        console.error("Test execution error:", err);
+        assert("Global test execution uncaught error", false, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

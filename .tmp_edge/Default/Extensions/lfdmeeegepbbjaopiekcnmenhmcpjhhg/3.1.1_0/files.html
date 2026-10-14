@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+    <title>Online PDF Converter</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="main-box">
+       <div class="content">
+            <div id="file-count" class="file-count">
+                <a href="./index.html">
+                    <img src="./images/left.svg" alt="">
+                </a>
+                <a href="./files.html">
+                    <span class="hide">1</span>
+                    <img src="./images/lb.svg" alt="">
+                </a>
+            </div>
+            <div class="time-box">
+                <div class="time-items">
+                    <div class="t-item"><div class="num time-hours">0</div><div data-localize="__MSG_page_time_hours__">__MSG_page_time_hours__</div></div>
+                    <div class="t-item"><div class="num time-minutes">0</div><div data-localize="__MSG_page_time_minutes__">__MSG_page_time_minutes__</div></div>
+                    <div class="t-item"><div class="num time-seconds">0</div><div data-localize="__MSG_page_time_seconds__">__MSG_page_time_seconds__</div></div>
+                </div>
+                <div class="time-hit" data-localize="__MSG_page_time_hint__">__MSG_page_time_hint__</div>
+            </div>
+            <div class="loginbtn">
+                <a href="https://qwerpdf.com/user/signin" target="_blank">
+                    <img src="./images/people.png">  
+                    <span data-localize="__MSG_page_login__">__MSG_page_login__</span>
+                </a>
+            </div>
+            <div class="userface hide">
+                <img src="images/icon.png" />
+            </div>
+            <div class="logo">
+                <a href="./index.html">
+                    <img src="images/logo.png" />
+                </a>
+            </div>
+            <div class="logo-title">
+                <div class="logo-title-text" data-localize="__MSG_logo_title_text__">__MSG_logo_title_text__</div>
+            </div>
+            <div class="line"></div>
+            <div class="files-box">
+                
+            </div>
+       </div>
+    </div>
+
+    <template id="file-temp">
+        <div class="file-item">
+            <div class="delete-line"></div>
+            <span class="icon">
+                <img src="./images/image.svg" />
+            </span>
+            <span class="name">name.pdf</span>
+            <span class="size">20 MB</span>
+            <span class="actions">
+                <a href="" target="_blank" class="edit"><img src="images/edit.svg" /></a>
+                <a href="" target="_blank" class="download"><img src="images/download.svg" /></a>
+                <a class="remove"><img src="images/remove.svg" /></a>
+            </span>
+        </div>
+    </template>
+    <script type="text/javascript" src="./js/localize.js"></script>
+    <script type="text/javascript" src="./js/misc.js"></script>
+    <script type="text/javascript" src="./js/config.js"></script>
+    <script type="text/javascript" src="./js/files.js"></script>
+</body>
+
+</html>

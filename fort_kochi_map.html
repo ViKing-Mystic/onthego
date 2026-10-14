@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kochi Expedition Master Navigator | Google Maps</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-hover: #047857;
+      --primary-glow: rgba(5, 150, 105, 0.35);
+      --accent: #0284c7;
+      --accent-warm: #f59e0b;
+      --purple: #8b5cf6;
+      --rose: #f43f5e;
+      --danger: #ef4444;
+      
+      --bg-main: #0b1120;
+      --bg-card: #131d31;
+      --bg-card-hover: #1c2b46;
+      --bg-input: #0f172a;
+      --border-color: #1e293b;
+      --border-highlight: #334155;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-input: #e2e8f0;
+      --border-color: #e2e8f0;
+      --border-highlight: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-sans);
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(19, 29, 49, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      font-size: 1.4rem;
+      background: var(--primary-glow);
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .header-btns {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px var(--primary-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-google {
+      background: #4285F4;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+    }
+
+    .btn-google:hover {
+      background: #3367d6;
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .app-layout {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      flex: 1;
+      height: calc(100vh - 58px);
+      overflow: hidden;
+    }
+
+    @media (max-width: 960px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 320px 1fr;
+        height: auto;
+        overflow: visible;
+      }
+    }
+
+    .sidebar {
+      background: var(--bg-main);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .filter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .pill-filters {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+
+    .pill-btn {
+      padding: 4px 9px;
+      font-size: 0.72rem;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .pill-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .route-banner {
+      background: linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+      padding: 12px;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .route-stats-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .route-stat-highlight {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    .places-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .place-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .place-card:hover, .place-card.active {
+      border-color: var(--primary);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .place-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .place-order-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .place-title-group {
+      flex: 1;
+    }
+
+    .place-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .place-area {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .category-tag {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .cat-heritage { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .cat-food { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .cat-sight { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .cat-stay { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+    .cat-transit { background: rgba(139, 92, 246, 0.2); color: #c084fc; }
+
+    .rating-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 3px;
+    }
+
+    .place-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+      margin: 6px 0;
+    }
+
+    .place-details {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: rgba(0, 0, 0, 0.18);
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .place-card-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .map-pane {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+
+    #mapContainer {
+      height: 100%;
+      width: 100%;
+      background: #1a202c;
+    }
+
+    .map-floating-overlay {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+
+    .custom-marker-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: var(--primary);
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 10px;
+    }
+    
+    .custom-marker-pin span {
+      transform: rotate(45deg);
+    }
+
+    .custom-marker-pin.food { background: #f59e0b; }
+    .custom-marker-pin.heritage { background: #3b82f6; }
+    .custom-marker-pin.sight { background: #10b981; }
+    .custom-marker-pin.stay { background: #f43f5e; }
+    .custom-marker-pin.transit { background: #8b5cf6; }
+
+    .leaflet-popup-content-wrapper {
+      background: var(--bg-card) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md) !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-popup-tip {
+      background: var(--bg-card) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand-box">
+      <div class="brand-logo">🗺️</div>
+      <div>
+        <h1 class="brand-title">Kochi Master Navigator</h1>
+        <p class="brand-subtitle">Fort Kochi • Mattancherry • Vypin • Kumbalangi</p>
+      </div>
+    </div>
+
+    <div class="header-btns">
+      <button class="btn btn-primary" onclick="openAddModal()">
+        ➕ Add Place
+      </button>
+      <a id="btnGlobalGoogleMaps" class="btn btn-google" href="#" target="_blank" title="Open master itinerary in Google Maps">
+        🧭 Google Maps Full Route
+      </a>
+      <a class="btn btn-secondary" href="index.html" title="Back to OntheGo Main App">
+        🛵 OntheGO App
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-layout">
+
+    <!-- Left Sidebar: List & Search -->
+    <aside class="sidebar">
+
+      <!-- Route Overview Card -->
+      <div class="route-banner">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">📍 28 Curated Spots & Base Stays</h2>
+          <span id="placeCountBadge" style="font-size: 0.72rem; background: var(--primary); color: #fff; padding: 2px 7px; border-radius: 12px; font-weight: 600;">28 Spots</span>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.35;">
+          Base 1: <b>Calvin's Inn</b> (Fort Kochi) • Base 2: <b>Zostel Kumbalangi</b>. Sequenced for seamless breakfast-to-dinner cafe hops, heritage sights, and coastal island escapes.
+        </p>
+        <div class="route-stats-row">
+          <div>Trip Window: <span class="route-stat-highlight">16–20 Oct</span></div>
+          <div>Clusters: <span class="route-stat-highlight">4 Zones</span></div>
+          <div>Cafes Rated: <span class="route-stat-highlight">14 Spots</span></div>
+        </div>
+        <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 5px;">
+          <div style="font-size: 0.72rem; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px;">📍 Open Direct Cluster Route in Google Maps:</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Calvin's+Inn+Fort+Kochi&destination=Fort+Kochi+Water+Metro+Terminal&waypoints=Santa+Cruz+Cathedral+Basilica+Fort+Kochi%7CIndo-Portuguese+Museum+Fort+Kochi%7CSt.+Francis+CSI+Church+Fort+Kochi%7CVasco+da+Gama+Square+Fort+Kochi%7CChinese+Fishing+Nets+Fort+Kochi%7CPrinted+Matter+Fort+Kochi&travelmode=walking" target="_blank" style="font-size: 0.68rem; padding: 4px 6px;">
+              🏛️ 1. Fort Kochi Heritage
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Qissa+Cafe+Fort+Kochi&destination=Trouvaille+Fort+Kochi&waypoints=Kashi+Art+Cafe+Fort+Kochi%7CLoafer's+Corner+Princess+Street+Fort+Kochi%7CPandhal+Cafe+and+Deli+David+Hall+Fort+Kochi%7COld+Harbour+Hotel+Fort+Kochi%7CParagon+Restaurant+Fort+Kochi%7CKerala+Cafe+Fort+Kochi%7CFort+House+Restaurant+Fort+Kochi&travelmode=walking" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #f59e0b;">
+              ☕ 1. Cafe & Food Crawl
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=The+Warehouse+Cafe+Bazaar+Road+Fort+Kochi&destination=Ginger+House+Museum+Restaurant+Mattancherry&waypoints=Lila+Curated+Art+Cafe+Kochi%7CMattancherry+Palace+Dutch+Palace+Kochi%7CJew+Town+Mattancherry+Kochi%7CParadesi+Synagogue+Jew+Town+Kochi%7CCafe+Crafters+Jew+Town+Kochi&travelmode=walking" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #0284c7;">
+              🏺 2. Mattancherry & Jew Town
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Fort+Kochi+Water+Metro+Terminal&destination=Cherai+Beach+Kochi&waypoints=High+Court+Water+Metro+Terminal+Ernakulam%7CVypin+Junction+Kochi%7CPuthuvype+Beach+and+Light+House&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #8b5cf6;">
+              ⛴️ 3. Water Metro & Vypin
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Zostel+Kumbalangi&destination=Puthenthodu+Beach+Chellanam+Kochi&waypoints=Kumbalangi+Integrated+Tourism+Village+Kochi&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #10b981;">
+              🛶 4. Kumbalangi Backwaters
+            </a>
+          </div>
+          <div style="font-size: 0.72rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px;">📅 Open Day-Wise Route in Google Maps:</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Calvin's+Inn+Fort+Kochi&destination=Trouvaille+Fort+Kochi&waypoints=The+Warehouse+Cafe+Bazaar+Road+Fort+Kochi%7CMattancherry+Palace+Dutch+Palace+Kochi%7CJew+Town+Mattancherry+Kochi%7CGinger+House+Museum+Restaurant+Mattancherry%7CManja+Bhagavathi+Temple+Mattancherry+Kochi%7CChinese+Fishing+Nets+Fort+Kochi%7CFort+House+Restaurant+Fort+Kochi&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #2563eb;">
+              🗓️ Day 1: Fri 16 Oct (Warehouse, Jew Town, Temple, Sunset & Fort House)
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Calvin's+Inn+Fort+Kochi&destination=Puthenthodu+Beach+Chellanam+Kochi&waypoints=Qissa+Cafe+Fort+Kochi%7CSt.+Francis+CSI+Church+Fort+Kochi%7CPrincess+Street+Fort+Kochi%7CPeter+Celli+Fort+Kochi%7CPrinted+Matter+Fort+Kochi%7CLoafer's+Corner+Princess+Street+Fort+Kochi%7CSanta+Cruz+Cathedral+Basilica+Fort+Kochi&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #0891b2;">
+              🗓️ Day 2: Sat 17 Oct (Colonial Streets, Loafer's & Beach ➔ Alleppey)
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Zostel+Kumbalangi&destination=Puthenthodu+Beach+Chellanam+Kochi&waypoints=Kumbalangi+Integrated+Tourism+Village+Kochi&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #059669;">
+              🗓️ Day 3: Mon 19 Oct (Kumbalangi)
+            </a>
+            <a class="btn btn-google btn-sm" href="https://www.google.com/maps/dir/?api=1&origin=Fort+Kochi+Water+Metro+Terminal&destination=Ernakulam+Junction+railway+station&waypoints=High+Court+Water+Metro+Terminal+Ernakulam%7CLoafer's+Corner+Princess+Street+Fort+Kochi%7CIndo-Portuguese+Museum+Fort+Kochi%7CParagon+Restaurant+Fort+Kochi&travelmode=driving" target="_blank" style="font-size: 0.68rem; padding: 4px 6px; background: #7c3aed;">
+              🗓️ Day 4: Tue 20 Oct (Metro & Train)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="filter-section">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search cafe, dish, beach, rating, area..." oninput="filterPlaces()">
+        <div class="pill-filters">
+          <button class="pill-btn active" data-filter="all" onclick="setCategoryFilter('all', this)">All</button>
+          <button class="pill-btn" data-filter="Fort Kochi" onclick="setAreaFilter('Fort Kochi', this)">Fort Kochi</button>
+          <button class="pill-btn" data-filter="Mattancherry" onclick="setAreaFilter('Mattancherry', this)">Mattancherry</button>
+          <button class="pill-btn" data-filter="Vypin & Coast" onclick="setAreaFilter('Vypin & Coast', this)">Vypin / Beach</button>
+          <button class="pill-btn" data-filter="Kumbalangi" onclick="setAreaFilter('Kumbalangi', this)">Kumbalangi</button>
+          <button class="pill-btn" data-filter="food" onclick="setCategoryFilter('food', this)">☕ Cafes & Food</button>
+          <button class="pill-btn" data-filter="heritage" onclick="setCategoryFilter('heritage', this)">🏛️ Heritage</button>
+        </div>
+        <div class="pill-filters" style="margin-top: -3px;">
+          <button class="pill-btn" onclick="setDayFilter(1, this)" style="border-color: #2563eb; color: #60a5fa;">🗓️ Day 1: 16 Oct (Arrival & Fort Kochi)</button>
+          <button class="pill-btn" onclick="setDayFilter(2, this)" style="border-color: #0891b2; color: #38bdf8;">🗓️ Day 2: 17 Oct (Mattancherry & Exit)</button>
+          <button class="pill-btn" onclick="setDayFilter(3, this)" style="border-color: #059669; color: #34d399;">🗓️ Day 3: 19 Oct (Kumbalangi Sunset)</button>
+          <button class="pill-btn" onclick="setDayFilter(4, this)" style="border-color: #7c3aed; color: #a78bfa;">🗓️ Day 4: 20 Oct (Water Metro & Train)</button>
+        </div>
+      </div>
+
+      <!-- Places List -->
+      <div id="placesListContainer" class="places-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+    </aside>
+
+    <!-- Right Pane: Interactive Map -->
+    <main class="map-pane">
+      <div id="mapContainer"></div>
+
+      <div class="map-floating-overlay">
+        <button class="btn btn-secondary btn-sm" onclick="centerOnAll()" style="background: rgba(19, 29, 49, 0.9);">
+          🎯 Zoom All
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="centerOnCluster('Fort Kochi')" style="background: rgba(19, 29, 49, 0.9);">
+          📍 Fort Kochi
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="centerOnCluster('Mattancherry')" style="background: rgba(19, 29, 49, 0.9);">
+          🏺 Mattancherry
+        </button>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Modal: Add New Place -->
+  <div id="addPlaceModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 1.05rem; font-weight: 700;">➕ Add Another Spot</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeAddModal()">✕</button>
+      </div>
+      <form onsubmit="handleAddNewPlace(event)">
+        <div class="form-group">
+          <label class="form-label">Place Name *</label>
+          <input type="text" id="newPlaceName" class="form-control" placeholder="e.g. French Toast / Seagull Bar" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Area / Locality</label>
+          <select id="newPlaceArea" class="form-control">
+            <option value="Fort Kochi">Fort Kochi</option>
+            <option value="Mattancherry">Mattancherry</option>
+            <option value="Vypin & Coast">Vypin & Coastal Beaches</option>
+            <option value="Kumbalangi">Kumbalangi & Backwaters</option>
+            <option value="Ernakulam">Ernakulam / Transit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="newPlaceCat" class="form-control">
+            <option value="food">🍔 Cafe / Food / Drinks</option>
+            <option value="heritage">🏛️ Heritage / History / Church</option>
+            <option value="sight">🌅 Sight / Viewpoint / Beach</option>
+            <option value="transit">⛴️ Water Metro / Ro-Ro / Transit</option>
+            <option value="stay">🏨 Hotel / Stay</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Coordinates (Latitude, Longitude)</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <input type="number" step="any" id="newPlaceLat" class="form-control" placeholder="Lat (e.g. 9.965)">
+            <input type="number" step="any" id="newPlaceLng" class="form-control" placeholder="Lng (e.g. 76.242)">
+          </div>
+          <span style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; display: block;">Leave blank to auto-approximate.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Highlights / Notes / Reviews</label>
+          <textarea id="newPlaceDesc" class="form-control" rows="2" placeholder="e.g. Signature coffee, best for brunch, open 9 AM - 9 PM"></textarea>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;">
+          <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save & Add Spot</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    // Complete 28 curated spots: Stays, Cafes, Heritage, Beaches, Water Metro
+    const DEFAULT_PLACES = [
+      // --- STAYS ---
+      {
+        id: "stay1",
+        order: 1,
+        name: "Calvin's Inn Kochi (Stay Base 1)",
+        area: "Fort Kochi",
+        category: "stay",
+        lat: 9.9610,
+        lng: 76.2465,
+        rating: "⭐ 4.6 / 5 (Warm, boutique homestay)",
+        pricing: "₹₹ (Base Camp Fort Kochi)",
+        timings: "Check-in: 16th Oct, 2:00 PM",
+        entry: "Confirmed Stay",
+        desc: "Your cozy central base in Fort Kochi. Walking distance to Santa Cruz Basilica, Bastian St cafes, and bicycle rentals. Quiet residential lane with hospitable hosts.",
+        googleQuery: "Calvin's+Inn+Fort+Kochi"
+      },
+      {
+        id: "stay2",
+        order: 2,
+        name: "Zostel Kumbalangi (Stay Base 2)",
+        area: "Kumbalangi",
+        category: "stay",
+        lat: 9.8785,
+        lng: 76.2842,
+        rating: "⭐ 4.7 / 5 (Scenic lakefront backpacker retreat)",
+        pricing: "₹₹ (Backwater Haven)",
+        timings: "Check-in: 18th Oct, 2:00-4:00 PM",
+        entry: "Confirmed Stay",
+        desc: "Waterfront backpacker hostel surrounded by quiet backwater channels, Chinese nets, and mangroves. Unrivaled sunsets, kayak rentals, and night bioluminescence walks.",
+        googleQuery: "Zostel+Kumbalangi"
+      },
+
+      // --- CLUSTER 1: FORT KOCHI COLONIAL & CAFE HUB ---
+      {
+        id: "fk_kashi",
+        order: 3,
+        name: "Kashi Art Cafe",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9652,
+        lng: 76.2423,
+        rating: "⭐ 4.3 / 5 (8,200+ reviews)",
+        pricing: "₹₹ (₹350-₹600/head)",
+        timings: "8:30 AM – 9:00 PM",
+        entry: "Cafe / Art Gallery",
+        desc: "<b>Vibe:</b> Zen courtyard gallery under lush foliage. <b>Crowd:</b> Art enthusiasts & travelers. <b>Role:</b> Benchmark Breakfast / Morning Coffee. <b>Must-Eat:</b> Iconic Warm Chocolate Cake & Pour-over Coffee.",
+        googleQuery: "Kashi+Art+Cafe+Fort+Kochi"
+      },
+      {
+        id: "fk_loafers",
+        order: 4,
+        name: "Loafer's Corner Cafe",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9649,
+        lng: 76.2438,
+        rating: "⭐ 4.4 / 5 (2,600+ reviews)",
+        pricing: "₹₹ (₹300-₹500/head)",
+        timings: "10:00 AM – 10:30 PM",
+        entry: "Casual Cafe",
+        desc: "<b>Vibe:</b> Vintage wooden attic cafe overlooking Princess Street. <b>Crowd:</b> Young, lively, bohemian. <b>Role:</b> <u>The Ultimate Brunch Spot</u>. <b>Must-Eat:</b> Banoffee Pie, Basil Pesto Toast, & Cold Brews.",
+        googleQuery: "Loafer's+Corner+Cafe+Princess+Street+Fort+Kochi"
+      },
+      {
+        id: "fk_pandhal",
+        order: 5,
+        name: "Pandhal Cafe and Deli (David Hall)",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9658,
+        lng: 76.2410,
+        rating: "⭐ 4.5 / 5 (3,200+ reviews)",
+        pricing: "₹₹-₹₹₹ (₹400-₹750/head)",
+        timings: "8:30 AM – 9:30 PM",
+        entry: "Heritage CGH Earth Cafe",
+        desc: "<b>Vibe:</b> 17th-century Dutch colonial bungalow with garden courtyards. <b>Crowd:</b> Relaxed & upscale. <b>Role:</b> Midday Coffee & Sourdough Lunch. <b>Must-Eat:</b> Mattancherry Spice Cake, Artisanal Sourdough Pizza.",
+        googleQuery: "Pandhal+Cafe+and+Deli+David+Hall+Fort+Kochi"
+      },
+      {
+        id: "fk_oldharbour",
+        order: 6,
+        name: "Old Harbour Hotel & Cafe",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9664,
+        lng: 76.2422,
+        rating: "⭐ 4.6 / 5 (1,800+ reviews)",
+        pricing: "₹₹₹ (₹800-₹1,500/head)",
+        timings: "11:00 AM – 10:30 PM",
+        entry: "Luxury Boutique Garden",
+        desc: "<b>Vibe:</b> 300-year-old Dutch residence with fountain patio and poolside tables. <b>Crowd:</b> Chic & quiet. <b>Role:</b> Golden Hour Drinks & Fine Dining. <b>Must-Eat:</b> Tiger Prawns & Fresh Seafood Grills.",
+        googleQuery: "Old+Harbour+Hotel+Fort+Kochi"
+      },
+      {
+        id: "fk_trouvaille",
+        order: 7,
+        name: "Trouvaille Cafe & Patisserie",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9638,
+        lng: 76.2440,
+        rating: "⭐ 4.5 / 5 (850+ reviews)",
+        pricing: "₹₹ (₹250-₹450/head)",
+        timings: "10:30 AM – 10:30 PM",
+        entry: "French Bakery / Cafe",
+        desc: "<b>Vibe:</b> Parisian patisserie with clean pastel aesthetics. <b>Crowd:</b> Sweet-tooth foodies & couples. <b>Role:</b> <u>Number #1 Dessert Stop</u>. <b>Must-Eat:</b> Burnt Basque Cheesecake, Dark Chocolate Tart, & Gelato.",
+        googleQuery: "Trouvaille+Fort+Kochi"
+      },
+      {
+        id: "fk_qissa",
+        order: 8,
+        name: "Qissa Cafe",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9612,
+        lng: 76.2470,
+        rating: "⭐ 4.4 / 5 (2,100+ reviews)",
+        pricing: "₹ (₹250-₹400/head)",
+        timings: "8:00 AM – 10:00 PM",
+        entry: "Cozy Cafe",
+        desc: "<b>Vibe:</b> Warm Scandinavian-style reading cafe just 2 mins from Calvin's Inn! <b>Crowd:</b> Digital nomads & book lovers. <b>Role:</b> Early Morning Quick Breakfast. <b>Must-Eat:</b> Shakshuka, Blueberry Pancakes, Espresso.",
+        googleQuery: "Qissa+Cafe+Fort+Kochi"
+      },
+      {
+        id: "fk_paragon",
+        order: 9,
+        name: "Fort Paragon Restaurant",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9622,
+        lng: 76.2458,
+        rating: "⭐ 4.3 / 5 (3,500+ reviews)",
+        pricing: "₹₹ (₹300-₹550/head)",
+        timings: "11:30 AM – 10:30 PM",
+        entry: "Legendary Kerala Dining",
+        desc: "<b>Vibe:</b> High-energy heritage Kerala restaurant. <b>Crowd:</b> Local families & biryani enthusiasts. <b>Role:</b> Heavy Authentic Malabar Lunch. <b>Must-Eat:</b> Paragon Chicken Biryani & Mango Fish Curry.",
+        googleQuery: "Paragon+Restaurant+Fort+Kochi"
+      },
+      {
+        id: "fk_petercelli",
+        order: 10,
+        name: "Peter Celli (Princess Street Burger)",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9647,
+        lng: 76.2435,
+        rating: "⭐ 4.2 / 5 (1,100+ reviews)",
+        pricing: "₹₹ (₹250-₹450/head)",
+        timings: "11:30 AM – 10:30 PM",
+        entry: "Casual Eatery",
+        desc: "<b>Vibe:</b> Street-front casual joint on Princess St. <b>Crowd:</b> Hungry walkers. <b>Role:</b> Quick Comfort Burger / Late Afternoon Bite. <b>Must-Eat:</b> Double Patty Chicken Burger & Garlic Mozzarella Pizza.",
+        googleQuery: "Peter+Celli+Fort+Kochi"
+      },
+      {
+        id: "fk_nets",
+        order: 11,
+        name: "Chinese Fishing Nets (Cheena Vala)",
+        area: "Fort Kochi",
+        category: "sight",
+        lat: 9.9678,
+        lng: 76.2429,
+        rating: "⭐ 4.4 / 5 (Iconic Landmark)",
+        pricing: "Free",
+        timings: "Open 24/7 (Sunset 5:30 PM / Sunrise 6:00 AM)",
+        entry: "Public Promenade",
+        desc: "14th-century cantilevered bamboo fishing nets operated by teak counterweights over the Arabian Sea. Golden hour photography icon.",
+        googleQuery: "Chinese+Fishing+Nets+Fort+Kochi"
+      },
+      {
+        id: "fk_vasco",
+        order: 12,
+        name: "Vasco da Gama Square",
+        area: "Fort Kochi",
+        category: "sight",
+        lat: 9.9669,
+        lng: 76.2425,
+        rating: "⭐ 4.3 / 5",
+        pricing: "Free",
+        timings: "Bustling 4:00 PM – 9:00 PM",
+        entry: "Public Walkway",
+        desc: "Coastal promenade adjacent to fishing nets with sea breeze, tender coconuts, spice stalls, and local fried fish vendors.",
+        googleQuery: "Vasco+da+Gama+Square+Fort+Kochi"
+      },
+      {
+        id: "fk_stfrancis",
+        order: 13,
+        name: "St. Francis CSI Church",
+        area: "Fort Kochi",
+        category: "heritage",
+        lat: 9.9660,
+        lng: 76.2415,
+        rating: "⭐ 4.5 / 5 (Built 1503)",
+        pricing: "Free (Modest dress)",
+        timings: "7:00 AM – 6:30 PM (Sun from 8:30 AM)",
+        entry: "India's Oldest European Church",
+        desc: "Original burial tomb of Portuguese explorer Vasco da Gama who died in Kochi in 1524. Remarkable wooden rafters and manual cloth punkahs.",
+        googleQuery: "St.+Francis+CSI+Church+Fort+Kochi"
+      },
+      {
+        id: "fk_santacruz",
+        order: 14,
+        name: "Santa Cruz Cathedral Basilica",
+        area: "Fort Kochi",
+        category: "heritage",
+        lat: 9.9634,
+        lng: 76.2443,
+        rating: "⭐ 4.6 / 5 (Gothic Masterpiece)",
+        pricing: "Free",
+        timings: "9:00 AM – 1:00 PM & 2:30 PM – 5:30 PM",
+        entry: "Historic Basilica",
+        desc: "One of 8 Basilicas in India. Brilliant whitewashed twin pastel spires, Italian frescoed ceilings depicting the Passion of Christ.",
+        googleQuery: "Santa+Cruz+Cathedral+Basilica+Fort+Kochi"
+      },
+      {
+        id: "fk_indoport",
+        order: 15,
+        name: "Indo-Portuguese Museum",
+        area: "Fort Kochi",
+        category: "heritage",
+        lat: 9.9602,
+        lng: 76.2425,
+        rating: "⭐ 4.2 / 5",
+        pricing: "₹20 / ₹100",
+        timings: "9 AM – 1 PM & 2 – 6 PM (Closed Mondays)",
+        entry: "Bishop's House Gardens",
+        desc: "16th-century silver monstrances, carved teak altarpieces, vestments, and relics displaying Portuguese-Kerala cultural fusion.",
+        googleQuery: "Indo-Portuguese+Museum+Fort+Kochi"
+      },
+      {
+        id: "fk_printedmatter",
+        order: 16,
+        name: "Printed Matter Bookshop & Studio",
+        area: "Fort Kochi",
+        category: "heritage",
+        lat: 9.9645,
+        lng: 76.2432,
+        rating: "⭐ 4.7 / 5 (Curated gems)",
+        pricing: "Free to browse",
+        timings: "10:30 AM – 7:30 PM",
+        entry: "Art Bookshop & Stationery",
+        desc: "Charming independent indie bookstore and design print studio on Princess St. Handcrafted zines, local Kochi art prints, postcards, and fiction.",
+        googleQuery: "Printed+Matter+Fort+Kochi"
+      },
+      {
+        id: "fk_keralacafe",
+        order: 17,
+        name: "Kerala Cafe",
+        area: "Fort Kochi",
+        category: "food",
+        lat: 9.9668,
+        lng: 76.2440,
+        rating: "⭐ 4.1 / 5 (720+ reviews)",
+        pricing: "₹ (₹150-₹300/head)",
+        timings: "8:00 AM – 10:00 PM",
+        entry: "Street Cafe",
+        desc: "<b>Vibe:</b> Street-side patio cafe with traditional chai shop snacks. <b>Role:</b> 4:00 PM Evening Tea. <b>Must-Eat:</b> Pazham Pori (Banana Fritters) & Sulaimani black tea.",
+        googleQuery: "Kerala+Cafe+Fort+Kochi"
+      },
+
+      // --- CLUSTER 2: MATTANCHERRY & JEW TOWN HUB ---
+      {
+        id: "mat_forthouse",
+        order: 18,
+        name: "Dinner at Fort House Restaurant",
+        area: "Mattancherry",
+        category: "food",
+        lat: 9.9650,
+        lng: 76.2512,
+        rating: "⭐ 4.4 / 5 (2,200+ reviews)",
+        pricing: "₹₹-₹₹₹ (₹600-₹1,100/head)",
+        timings: "6:30 PM – 10:30 PM (Dinner)",
+        entry: "Waterfront Jetty Restaurant",
+        desc: "<b>Vibe:</b> Romantic wooden jetty extending over the Cochin harbour water under glowing lanterns. <b>Role:</b> <u>Unbeatable Dinner Experience</u>. <b>Must-Eat:</b> Karimeen Pollichathu, Kerala Prawn Curry, Appam.",
+        googleQuery: "Fort+House+Restaurant+Fort+Kochi"
+      },
+      {
+        id: "mat_dutchpalace",
+        order: 19,
+        name: "Dutch Palace (Mattancherry Palace)",
+        area: "Mattancherry",
+        category: "heritage",
+        lat: 9.9583,
+        lng: 76.2592,
+        rating: "⭐ 4.4 / 5 (ASI Monument)",
+        pricing: "₹5 ticket",
+        timings: "9:45 AM – 4:45 PM (Closed Fridays)",
+        entry: "Royal Palace",
+        desc: "Built 1555 by Portuguese, renovated by Dutch. World-renowned 16th-century Ramayana tempera murals, palanquins, and royal armory.",
+        googleQuery: "Mattancherry+Palace+Dutch+Palace+Kochi"
+      },
+      {
+        id: "mat_jewtown",
+        order: 20,
+        name: "Jew Town (Antique & Spice Street)",
+        area: "Mattancherry",
+        category: "heritage",
+        lat: 9.9575,
+        lng: 76.2598,
+        rating: "⭐ 4.5 / 5 (Historic Bazaar)",
+        pricing: "Free to wander",
+        timings: "10:00 AM – 7:00 PM",
+        entry: "Heritage Pedestrian Lane",
+        desc: "Aromatic cobblestone street lined with pepper and cardamom merchants, carved rosewood pillars, brass urlis, and centuries-old antique warehouses.",
+        googleQuery: "Jew+Town+Mattancherry+Kochi"
+      },
+      {
+        id: "mat_synagogue",
+        order: 21,
+        name: "Paradesi Synagogue",
+        area: "Mattancherry",
+        category: "heritage",
+        lat: 9.9566,
+        lng: 76.2600,
+        rating: "⭐ 4.5 / 5 (Built 1568)",
+        pricing: "₹10 (Shoes off)",
+        timings: "10 AM – 1 PM & 2 – 5 PM (Closed Fri, Sat & Jewish holidays)",
+        entry: "Oldest Commonwealth Synagogue",
+        desc: "Hand-painted blue willow 18th-century Chinese porcelain floor tiles (each unique), sparkling Belgian chandeliers, and Torah scrolls.",
+        googleQuery: "Paradesi+Synagogue+Jew+Town+Kochi"
+      },
+      {
+        id: "mat_gingerhouse",
+        order: 22,
+        name: "Ginger House Museum Restaurant",
+        area: "Mattancherry",
+        category: "food",
+        lat: 9.9579,
+        lng: 76.2609,
+        rating: "⭐ 4.1 / 5 (2,800+ reviews)",
+        pricing: "₹₹-₹₹₹ (₹450-₹800/head)",
+        timings: "9:00 AM – 10:00 PM",
+        entry: "Waterfront Antique Museum",
+        desc: "<b>Vibe:</b> India's only museum restaurant; dine alongside a 108ft carved wooden snake boat on the harbour edge. <b>Role:</b> Midday Cool-Down. <b>Must-Eat:</b> Signature Iced Ginger Tea & Ginger Ice Cream.",
+        googleQuery: "Ginger+House+Museum+Restaurant+Mattancherry"
+      },
+      {
+        id: "mat_warehouse",
+        order: 23,
+        name: "The Warehouse Cafe Fort Kochi",
+        area: "Mattancherry",
+        category: "food",
+        lat: 9.9615,
+        lng: 76.2570,
+        rating: "⭐ 4.2 / 5 (1,400+ reviews)",
+        pricing: "₹₹ (₹350-₹600/head)",
+        timings: "10:00 AM – 10:30 PM",
+        entry: "Restored Godown",
+        desc: "<b>Vibe:</b> Industrial heritage warehouse on Bazaar Road overlooking the waterways. <b>Role:</b> Late Afternoon Chill. <b>Must-Eat:</b> Cold brew coffee & calamari bites.",
+        googleQuery: "The+Warehouse+Cafe+Bazaar+Road+Fort+Kochi"
+      },
+      {
+        id: "mat_lila",
+        order: 24,
+        name: "Lila Curated Art & Cafe",
+        area: "Mattancherry",
+        category: "food",
+        lat: 9.9605,
+        lng: 76.2582,
+        rating: "⭐ 4.6 / 5 (620+ reviews)",
+        pricing: "₹₹ (₹350-₹600/head)",
+        timings: "10:00 AM – 8:00 PM",
+        entry: "Design Concept Studio",
+        desc: "<b>Vibe:</b> Minimalist courtyard, artisanal lifestyle boutique, and zen garden. <b>Role:</b> Aesthetic Coffee Break. <b>Must-Eat:</b> Seasonal Kombucha, Carrot Walnut Cake, Pour-overs.",
+        googleQuery: "Lila+Curated+Art+Cafe+Kochi"
+      },
+      {
+        id: "mat_crafters",
+        order: 25,
+        name: "Cafe Crafters (Coffee)",
+        area: "Mattancherry",
+        category: "food",
+        lat: 9.9570,
+        lng: 76.2599,
+        rating: "⭐ 4.3 / 5 (1,250+ reviews)",
+        pricing: "₹₹ (₹250-₹450/head)",
+        timings: "9:30 AM – 7:30 PM",
+        entry: "Antique Street Cafe",
+        desc: "<b>Vibe:</b> Wooden rafters, cozy corner directly above Jew Town's antique arcades. <b>Role:</b> Specialized Coffee Refuel. <b>Must-Eat:</b> Signature Spiced Filter Coffee & Cardamom Ginger Tea.",
+        googleQuery: "Cafe+Crafters+Jew+Town+Kochi"
+      },
+      {
+        id: "mat_manjatemple",
+        order: 26,
+        name: "Manja Bhagavathi Temple",
+        area: "Mattancherry",
+        category: "heritage",
+        lat: 9.9565,
+        lng: 76.2572,
+        rating: "⭐ 4.6 / 5 (Sacred Cherlai Temple)",
+        pricing: "Free entry (Modest dress)",
+        timings: "5:30 AM – 10:30 AM & 5:00 PM – 7:30 PM",
+        entry: "Spiritual Heritage",
+        desc: "Historic temple dedicated to Goddess Bhadrakali in Cherlai, Mattancherry. Famous for sacred turmeric (manja) offerings, evening brass oil lamps, and peaceful spiritual architecture.",
+        googleQuery: "Manja+Bhagavathi+Temple+Mattancherry+Kochi"
+      },
+      {
+        id: "fk_streets",
+        order: 27,
+        name: "Colonial Streets (Princess St, Peter Celli & Burgher St)",
+        area: "Fort Kochi",
+        category: "heritage",
+        lat: 9.9650,
+        lng: 76.2430,
+        rating: "⭐ 4.7 / 5 (Colonial Walking Quarter)",
+        pricing: "Free to wander",
+        timings: "Open all day",
+        entry: "Heritage Quarter",
+        desc: "Historic colonial street circuit connecting Princess Street, Peter Celli's corner, and Burgher Street. Portuguese & Dutch villas, pastel facades, and boutique art studios.",
+        googleQuery: "Princess+Street+Fort+Kochi"
+      },
+
+      // --- CLUSTER 3: WATER METRO, VYPIN & OUTER BEACHES ---
+      {
+        id: "c3_watermetro",
+        order: 28,
+        name: "Fort Kochi Water Metro Terminal (Best Line Experience)",
+        area: "Fort Kochi",
+        category: "transit",
+        lat: 9.9672,
+        lng: 76.2465,
+        rating: "⭐ 4.8 / 5 (Must-Do Kerala Experience)",
+        pricing: "₹40 per ticket (AC Electric Catamaran)",
+        timings: "Every 20-30 mins from 7:00 AM – 8:00 PM",
+        entry: "Kochi Water Metro",
+        desc: "<b>The Ultimate Ride:</b> Fort Kochi ⇄ High Court Terminal line! Silent, air-conditioned hybrid electric boat gliding past container ships, Bolgatty Palace, and Chinese nets across the backwaters. Unbeatable 20-minute panoramic voyage.",
+        googleQuery: "Fort+Kochi+Water+Metro+Terminal"
+      },
+      {
+        id: "c3_puthuvype",
+        order: 29,
+        name: "Puthuvype Beach and Light House",
+        area: "Vypin & Coast",
+        category: "sight",
+        lat: 9.9986,
+        lng: 76.2224,
+        rating: "⭐ 4.5 / 5 (Kerala's Tallest Lighthouse)",
+        pricing: "₹20 entry",
+        timings: "Lighthouse: 3:00 PM – 5:00 PM (Beach open till sunset)",
+        entry: "Vypin Coastline",
+        desc: "Just 10 mins north across the channel (via Ro-Ro ferry). 46-meter tall lighthouse with elevator/stairs giving a breathtaking 360-degree aerial panorama over the ocean and Kochi harbor.",
+        googleQuery: "Puthuvype+Beach+and+Light+House"
+      },
+      {
+        id: "c3_cherai",
+        order: 30,
+        name: "Cherai Beach",
+        area: "Vypin & Coast",
+        category: "sight",
+        lat: 10.1416,
+        lng: 76.1786,
+        rating: "⭐ 4.4 / 5 (Famous Swimming Beach)",
+        pricing: "Free entry",
+        timings: "Best during morning or sunset",
+        entry: "Northern Vypin Island",
+        desc: "Golden 10-km swimming beach flanked by the Arabian sea on one side and tranquil backwaters on the other. Water sports, dolphin sightings, and beach shacks. (Approx 45 mins north).",
+        googleQuery: "Cherai+Beach+Kochi"
+      },
+      {
+        id: "c3_puthethodu",
+        order: 31,
+        name: "Puthethodu Beach (Puthenthodu Beach)",
+        area: "Kumbalangi",
+        category: "sight",
+        lat: 9.8780,
+        lng: 76.2620,
+        rating: "⭐ 4.4 / 5 (Serene & Off-beat)",
+        pricing: "Free",
+        timings: "Sunset 5:00 PM – 6:30 PM",
+        entry: "Chellanam Coastal Road",
+        desc: "Quiet, unspoiled beach with sea wall boulders, fishing boats, and glowing sunsets. Located just 12 mins from Zostel Kumbalangi! Perfect for your Kumbalangi afternoon or Alleppey roadtrip.",
+        googleQuery: "Puthenthodu+Beach+Chellanam+Kochi"
+      }
+    ];
+
+    let places = [];
+    let map = null;
+    let markersLayer = null;
+    let activeFilterArea = 'all';
+    let activeFilterCat = 'all';
+    let activeFilterDay = null;
+    let searchQuery = '';
+
+    const DAY_MAP = {
+      1: ['stay1', 'mat_warehouse', 'mat_dutchpalace', 'mat_jewtown', 'mat_crafters', 'mat_gingerhouse', 'mat_manjatemple', 'fk_nets', 'fk_vasco', 'mat_forthouse', 'fk_trouvaille'],
+      2: ['stay1', 'fk_qissa', 'fk_pandhal', 'fk_stfrancis', 'fk_streets', 'fk_petercelli', 'fk_printedmatter', 'fk_loafers', 'fk_santacruz', 'c3_puthethodu'],
+      3: ['stay2', 'c3_puthethodu'],
+      4: ['c3_watermetro', 'fk_kashi', 'fk_indoport', 'c3_puthuvype', 'c3_cherai', 'fk_paragon']
+    };
+
+    function initApp() {
+      const saved = localStorage.getItem('fort_kochi_master_places_v3');
+      if (saved) {
+        try {
+          places = JSON.parse(saved);
+        } catch (e) {
+          places = [...DEFAULT_PLACES];
+        }
+      } else {
+        places = [...DEFAULT_PLACES];
+      }
+
+      initMap();
+      renderPlacesList();
+      updateGlobalGoogleMapsLinks();
+    }
+
+    function initMap() {
+      map = L.map('mapContainer', {
+        zoomControl: true
+      }).setView([9.9650, 76.2470], 14);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+      updateMapMarkers();
+    }
+
+    function createCustomPin(order, category) {
+      let catClass = 'heritage';
+      if (category === 'food') catClass = 'food';
+      if (category === 'sight') catClass = 'sight';
+      if (category === 'stay') catClass = 'stay';
+      if (category === 'transit') catClass = 'transit';
+
+      return L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div class="custom-marker-pin ${catClass}"><span>${order}</span></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -26]
+      });
+    }
+
+    function updateMapMarkers() {
+      if (!map || !markersLayer) return;
+      markersLayer.clearLayers();
+
+      const sortedPlaces = [...places].sort((a,b) => (a.order || 0) - (b.order || 0));
+
+      sortedPlaces.forEach((p, idx) => {
+        if (!p.lat || !p.lng) return;
+
+        const marker = L.marker([p.lat, p.lng], {
+          icon: createCustomPin(p.order || idx + 1, p.category)
+        });
+
+        const directGMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name + ', ' + p.area + ', Kochi')}`;
+        const popupContent = `
+          <div style="min-width: 210px; padding: 4px;">
+            <div style="font-size: 0.72rem; color: #059669; font-weight: 700;">#${p.order || idx + 1} • ${p.area}</div>
+            <div style="font-size: 0.92rem; font-weight: bold; margin-bottom: 2px;">${p.name}</div>
+            ${p.rating ? `<div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-bottom: 4px;">${p.rating}</div>` : ''}
+            <p style="font-size: 0.76rem; line-height: 1.3; color: #94a3b8; margin-bottom: 6px;">${p.desc || ''}</p>
+            <div style="font-size: 0.7rem; color: #cbd5e1; margin-bottom: 8px;">
+              ⏱ <b>Hours:</b> ${p.timings || 'Check on visit'}<br>
+              💰 <b>Pricing:</b> ${p.pricing || 'Standard'}
+            </div>
+            <a href="${directGMapUrl}" target="_blank" style="display: block; text-align: center; background: #4285F4; color: white; padding: 6px 10px; border-radius: 6px; font-size: 0.74rem; text-decoration: none; font-weight: 600;">
+              🧭 Directions in Google Maps
+            </a>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        markersLayer.addLayer(marker);
+      });
+    }
+
+    function renderPlacesList() {
+      const container = document.getElementById('placesListContainer');
+      const badge = document.getElementById('placeCountBadge');
+      if (!container) return;
+
+      const filtered = places.filter(p => {
+        const matchesArea = (activeFilterArea === 'all') || (p.area === activeFilterArea);
+        const matchesCat = (activeFilterCat === 'all') || 
+                           (activeFilterCat === 'food' && p.category === 'food') ||
+                           (activeFilterCat === 'heritage' && (p.category === 'heritage' || p.category === 'sight'));
+        const matchesDay = !activeFilterDay || (DAY_MAP[activeFilterDay] && DAY_MAP[activeFilterDay].includes(p.id));
+        const matchesSearch = !searchQuery || 
+                              p.name.toLowerCase().includes(searchQuery) ||
+                              (p.desc && p.desc.toLowerCase().includes(searchQuery)) ||
+                              (p.area && p.area.toLowerCase().includes(searchQuery));
+        return matchesArea && matchesCat && matchesSearch && matchesDay;
+      });
+
+      badge.textContent = `${filtered.length} of ${places.length} Spots`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 30px 16px; color: var(--text-dim);">
+            <div style="font-size: 1.8rem; margin-bottom: 6px;">🔍</div>
+            <p>No places found matching your filter.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map((p, idx) => {
+        const directNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name + ', ' + p.area + ', Kochi')}`;
+        let tagClass = 'cat-heritage';
+        let tagLabel = 'Heritage';
+        if (p.category === 'food') { tagClass = 'cat-food'; tagLabel = 'Cafe & Food'; }
+        if (p.category === 'sight') { tagClass = 'cat-sight'; tagLabel = 'Beach / Sight'; }
+        if (p.category === 'stay') { tagClass = 'cat-stay'; tagLabel = 'Base Stay'; }
+        if (p.category === 'transit') { tagClass = 'cat-transit'; tagLabel = 'Water Metro'; }
+
+        return `
+          <div class="place-card" id="card-${p.id}" onclick="focusPlace('${p.id}')">
+            <div class="place-header">
+              <span class="place-order-badge">${p.order || idx + 1}</span>
+              <div class="place-title-group">
+                <div class="place-title">${p.name}</div>
+                <div class="place-area">📍 ${p.area}</div>
+              </div>
+              <span class="category-tag ${tagClass}">${tagLabel}</span>
+            </div>
+
+            ${p.rating ? `<div class="rating-badge">${p.rating}</div>` : ''}
+
+            <p class="place-desc">${p.desc || ''}</p>
+
+            <div class="place-details">
+              <div>⏰ <b>Timings:</b> ${p.timings || 'Varies'}</div>
+              <div>💰 <b>Pricing:</b> ${p.pricing || 'Standard'}</div>
+            </div>
+
+            <div class="place-card-actions">
+              <a href="${directNavUrl}" target="_blank" class="btn btn-google btn-sm" onclick="event.stopPropagation()">
+                🧭 Google Maps
+              </a>
+              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); zoomOnCoords(${p.lat}, ${p.lng})">
+                🗺️ Show Pin
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateGlobalGoogleMapsLinks() {
+      // Create multi-stop directions for the Fort Kochi core cluster
+      const fortKochiStops = places.filter(p => p.area === 'Fort Kochi' && p.category !== 'stay').slice(0, 9);
+      if (fortKochiStops.length === 0) return;
+
+      const origin = encodeURIComponent("Calvin's Inn Fort Kochi");
+      const destination = encodeURIComponent("Fort House Restaurant Fort Kochi");
+      const waypoints = fortKochiStops.map(p => encodeURIComponent(p.name + ' Fort Kochi')).join('|');
+      
+      const fullGMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=walking`;
+
+      const headerBtn = document.getElementById('btnGlobalGoogleMaps');
+      const bannerBtn = document.getElementById('btnBannerDirections');
+      if (headerBtn) headerBtn.href = fullGMapUrl;
+      if (bannerBtn) bannerBtn.href = fullGMapUrl;
+    }
+
+    function focusPlace(placeId) {
+      const p = places.find(x => x.id === placeId);
+      if (p && p.lat && p.lng && map) {
+        map.flyTo([p.lat, p.lng], 16, { animate: true, duration: 1 });
+      }
+    }
+
+    function zoomOnCoords(lat, lng) {
+      if (lat && lng && map) {
+        map.flyTo([lat, lng], 17, { animate: true, duration: 1 });
+      }
+    }
+
+    function centerOnAll() {
+      if (!map || places.length === 0) return;
+      const bounds = L.latLngBounds(places.filter(p => p.lat && p.lng).map(p => [p.lat, p.lng]));
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    function centerOnCluster(areaName) {
+      const cluster = places.filter(p => p.area === areaName && p.lat && p.lng);
+      if (cluster.length > 0 && map) {
+        const bounds = L.latLngBounds(cluster.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+
+    function filterPlaces() {
+      searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+      renderPlacesList();
+    }
+
+    function setCategoryFilter(cat, btn) {
+      activeFilterCat = cat;
+      activeFilterArea = 'all';
+      updatePillActive(btn);
+      renderPlacesList();
+    }
+
+    function setAreaFilter(area, btn) {
+      activeFilterArea = area;
+      activeFilterCat = 'all';
+      activeFilterDay = null;
+      updatePillActive(btn);
+      renderPlacesList();
+      centerOnCluster(area);
+    }
+
+    function setDayFilter(dayNum, btn) {
+      activeFilterDay = (activeFilterDay === dayNum) ? null : dayNum;
+      activeFilterArea = 'all';
+      activeFilterCat = 'all';
+      updatePillActive(btn);
+      renderPlacesList();
+      if (activeFilterDay && DAY_MAP[activeFilterDay]) {
+        const dayPlaces = places.filter(p => DAY_MAP[activeFilterDay].includes(p.id) && p.lat && p.lng);
+        if (dayPlaces.length > 0 && map) {
+          const bounds = L.latLngBounds(dayPlaces.map(p => [p.lat, p.lng]));
+          map.fitBounds(bounds, { padding: [40, 40] });
+        }
+      }
+    }
+
+    function updatePillActive(activeBtn) {
+      document.querySelectorAll('.pill-btn').forEach(btn => btn.classList.remove('active'));
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function openAddModal() {
+      document.getElementById('addPlaceModal').classList.add('open');
+    }
+
+    function closeAddModal() {
+      document.getElementById('addPlaceModal').classList.remove('open');
+    }
+
+    function handleAddNewPlace(e) {
+      e.preventDefault();
+      const name = document.getElementById('newPlaceName').value.trim();
+      const area = document.getElementById('newPlaceArea').value;
+      const cat = document.getElementById('newPlaceCat').value;
+      let lat = parseFloat(document.getElementById('newPlaceLat').value);
+      let lng = parseFloat(document.getElementById('newPlaceLng').value);
+      const desc = document.getElementById('newPlaceDesc').value.trim();
+
+      if (isNaN(lat) || isNaN(lng)) {
+        if (area === 'Fort Kochi') { lat = 9.964 + (Math.random()-0.5)*0.006; lng = 76.243 + (Math.random()-0.5)*0.006; }
+        else if (area === 'Mattancherry') { lat = 9.958 + (Math.random()-0.5)*0.006; lng = 76.259 + (Math.random()-0.5)*0.006; }
+        else if (area === 'Kumbalangi') { lat = 9.878 + (Math.random()-0.5)*0.006; lng = 76.284 + (Math.random()-0.5)*0.006; }
+        else { lat = 10.010; lng = 76.220; }
+      }
+
+      const newId = 'p_' + Date.now();
+      const newPlace = {
+        id: newId,
+        order: places.length + 1,
+        name: name,
+        area: area,
+        category: cat,
+        lat: lat,
+        lng: lng,
+        rating: "User Added",
+        pricing: "Standard",
+        timings: "Check on visit",
+        desc: desc || "Added spot",
+        googleQuery: encodeURIComponent(name + ' ' + area + ' Kochi')
+      };
+
+      places.push(newPlace);
+      localStorage.setItem('fort_kochi_master_places_v2', JSON.stringify(places));
+
+      closeAddModal();
+      e.target.reset();
+
+      renderPlacesList();
+      updateMapMarkers();
+      focusPlace(newId);
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

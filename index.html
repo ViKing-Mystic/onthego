@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OntheGO">
+  <title>OntheGO — Interactive Travel Companion | Kochi to Alleppey Scooter Expedition</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./css/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%230d9488'/><path d='M30 65 L50 25 L70 65 L50 52 Z' fill='white'/></svg>">
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo-icon">🛵</div>
+      <div class="brand-text-block">
+        <span class="brand-title">OntheGO</span>
+        <span class="brand-tagline">Your trip. Your pace. Everything on the go.</span>
+      </div>
+    </div>
+
+    <!-- Desktop Navigation Tabs -->
+    <nav class="desktop-nav-tabs">
+      <button class="desktop-nav-tab-btn active" data-tab="today">🏠 Today</button>
+      <button class="desktop-nav-tab-btn" data-tab="itinerary">📋 Itinerary</button>
+      <button class="desktop-nav-tab-btn" data-tab="map">🗺️ Map & Routes</button>
+      <button class="desktop-nav-tab-btn" data-tab="expenses">💳 Expenses</button>
+      <button class="desktop-nav-tab-btn" data-tab="more">⋯ More</button>
+    </nav>
+
+    <div class="header-actions">
+      <button type="button" id="activeTravellerToggleBtn" class="traveller-toggle-pill" onclick="OntheGoCollaboration.switchTraveller(OntheGoCollaboration.activeTravellerId === 'traveller-1' ? 'traveller-2' : 'traveller-1')" title="Toggle Active Persona (Vishnu / Co-rider)">🛵 <span class="traveller-pill-name">Vishnu</span></button>
+      <span id="headerSyncStatusPill" class="header-status-pill status-online" title="Multi-device sync status">🟢 Synced</span>
+      <span id="headerStatusBadge" class="header-status-pill status-online">🟢 Online</span>
+      <button type="button" class="icon-btn" onclick="OntheGoTimeHelper.triggerRunningLate()" title="Running Late Assistant">
+        🏃
+      </button>
+      <button type="button" id="themeToggleBtn" class="icon-btn" onclick="OntheGoApp.toggleTheme()" title="Toggle Dark/Light Mode">
+        ☀️
+      </button>
+      <button type="button" class="icon-btn" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('settings');" title="Settings & Backup">
+        ⚙️
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="app-container">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: HOME DASHBOARD (TODAY) -->
+    <!-- ========================================== -->
+    <section id="view-today" class="tab-view active">
+      
+      <!-- Trip Hero Banner -->
+      <div class="trip-hero">
+        <div class="hero-title-row">
+          <div>
+            <h1 class="hero-title">Kochi–Alleppey Coastal Scooter Escape</h1>
+            <p class="hero-subtitle">🗓 16–20 October 2026 • 5-Day Kerala Expedition</p>
+          </div>
+          <span style="font-size: 0.72rem; font-weight: 800; background: var(--sunset-coral); color: white; padding: 4px 10px; border-radius: var(--radius-full);">Live Plan</span>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-box">
+            <div class="stat-val">165 km</div>
+            <div class="stat-lbl">Total Ride</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">96 Hrs</div>
+            <div class="stat-lbl">Duration</div>
+          </div>
+          <div class="stat-box">
+            <div id="dashDayProgress" class="stat-val">0/11 Done</div>
+            <div class="stat-lbl">Day Progress</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Day Carousel Selector -->
+      <div class="section-header">
+        <h2 class="section-title">📅 Select Trip Day</h2>
+        <button class="btn-sm" onclick="OntheGoApp.switchTab('itinerary')">View Full Timeline ➔</button>
+      </div>
+      <div id="dashDaySelector" class="day-selector-scroll"></div>
+
+      <!-- Critical Warnings / Deadline Reminders Banner -->
+      <div id="dashWarningContainer"></div>
+
+      <!-- Prominent "Start Today's Route" CTA -->
+      <div style="margin-bottom: 14px;">
+        <button type="button" class="btn-primary btn-block" onclick="OntheGoApp.startTodayRoute()" style="font-size: 1rem; padding: 12px 18px;">
+          🛵 Start Today's Route (Open Google Maps)
+        </button>
+      </div>
+
+      <!-- Next Incomplete / Upcoming Stop Card -->
+      <div id="dashUpcomingStopContainer"></div>
+
+      <!-- Tonight's Base Camp Stay Widget -->
+      <div id="dashStayWidgetContainer"></div>
+
+      <!-- 2-Column Mini Widgets: Weather & Expense Snapshot -->
+      <div class="dashboard-grid-2">
+        <div class="mini-widget">
+          <div class="mini-widget-title">🌤️ Coastal Weather</div>
+          <div id="dashWeatherWidgetVal" class="mini-widget-val">29°C 🌤️</div>
+          <div id="dashWeatherWidgetSub" class="mini-widget-sub">Loading live weather...</div>
+        </div>
+        <div class="mini-widget">
+          <div class="mini-widget-title">💰 Total Spent</div>
+          <div id="dashExpenseWidgetVal" class="mini-widget-val">₹500</div>
+          <div class="mini-widget-sub">Includes ₹500 advance</div>
+        </div>
+      </div>
+
+      <!-- Quick Action Grid -->
+      <div class="section-header">
+        <h2 class="section-title">⚡ Quick Road Actions</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;">
+        <button type="button" class="btn-secondary" onclick="OntheGoItinerary.openAddActivityModal()">
+          ➕ Add Stop
+        </button>
+        <button type="button" class="btn-secondary" onclick="OntheGoExpenses.openAddModal()">
+          💳 Log Expense
+        </button>
+        <button type="button" class="btn-secondary" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('backups');">
+          🔀 Backup Planner
+        </button>
+        <button type="button" class="btn-secondary" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('checklist');">
+          ✅ Checklist
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: INTERACTIVE ITINERARY -->
+    <!-- ========================================== -->
+    <section id="view-itinerary" class="tab-view">
+      
+      <!-- Day Selector Carousel -->
+      <div id="daySelectorContainer" class="day-selector-scroll"></div>
+
+      <!-- Day Summary & Road Notes -->
+      <div id="dayRouteSummaryContainer"></div>
+
+      <!-- Timeline Category Filter Bar -->
+      <div class="rec-filters">
+        <button class="rec-filter-btn active" data-cat="all" onclick="OntheGoItinerary.setCategoryFilter('all')">All Stops</button>
+        <button class="rec-filter-btn" data-cat="Restaurant" onclick="OntheGoItinerary.setCategoryFilter('Restaurant')">🍱 Meals & Cafes</button>
+        <button class="rec-filter-btn" data-cat="Sightseeing" onclick="OntheGoItinerary.setCategoryFilter('Sightseeing')">🏛️ Sights & Heritage</button>
+        <button class="rec-filter-btn" data-cat="Beach" onclick="OntheGoItinerary.setCategoryFilter('Beach')">🏖️ Beaches</button>
+        <button class="rec-filter-btn" data-cat="Activity" onclick="OntheGoItinerary.setCategoryFilter('Activity')">🏄 Activities</button>
+        <button class="rec-filter-btn" data-cat="Transport" onclick="OntheGoItinerary.setCategoryFilter('Transport')">🛵 Transit</button>
+        <button class="rec-filter-btn" data-cat="Accommodation" onclick="OntheGoItinerary.setCategoryFilter('Accommodation')">🏨 Stays</button>
+      </div>
+
+      <!-- Section Header with Actions -->
+      <div class="section-header">
+        <h2 class="section-title">⏱ Timeline & Schedule</h2>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-sm btn-primary-sm" onclick="OntheGoItinerary.openAddActivityModal()">
+            ➕ Add Stop
+          </button>
+          <button type="button" class="btn-sm" onclick="OntheGoItinerary.restoreOriginalItinerary()" title="Restore Original Itinerary">
+            🔄 Reset Plan
+          </button>
+        </div>
+      </div>
+
+      <!-- Timeline Stops List -->
+      <div id="timelineContainer" class="timeline-list"></div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: MAP & ROUTE PLANNER -->
+    <!-- ========================================== -->
+    <section id="view-map" class="tab-view">
+      
+      <div class="section-header">
+        <h2 class="section-title">🗺️ Interactive Route Map</h2>
+        <button type="button" id="openFullRouteGoogleBtn" class="btn-sm btn-primary-sm" style="display: none;">
+          🧭 Open Full Day Route in Google Maps
+        </button>
+      </div>
+
+      <!-- Day Filters for Map -->
+      <div id="mapDayFilters" class="day-selector-scroll"></div>
+
+      <!-- Category Filters for Map -->
+      <div id="mapCatFilters" class="rec-filters">
+        <button class="rec-filter-btn active" data-cat="all" onclick="OntheGoMap.setCategoryFilter('all')">All Pins</button>
+        <button class="rec-filter-btn" data-cat="Restaurant" onclick="OntheGoMap.setCategoryFilter('Restaurant')">🍱 Food</button>
+        <button class="rec-filter-btn" data-cat="Sight" onclick="OntheGoMap.setCategoryFilter('Sight')">🏛️ Sights</button>
+        <button class="rec-filter-btn" data-cat="Beach" onclick="OntheGoMap.setCategoryFilter('Beach')">🏖️ Beaches</button>
+        <button class="rec-filter-btn" data-cat="Stay" onclick="OntheGoMap.setCategoryFilter('Stay')">🏨 Stays</button>
+        <button class="rec-filter-btn" data-cat="Activity" onclick="OntheGoMap.setCategoryFilter('Activity')">🏄 Activities</button>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div class="map-wrapper">
+        <div id="leafletMapContainer"></div>
+      </div>
+
+      <div class="alert-banner alert-info" style="margin-top: 8px;">
+        <span class="alert-icon">🌊</span>
+        <div>
+          <b>Highlighted Coastal Highway:</b> The scenic Chellanam–Andhakaranazhi–Mararikulam road is marked in solid coral. Dotted teal lines connect your ordered itinerary stops.
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: EXPENSES TRACKER -->
+    <!-- ========================================== -->
+    <section id="view-expenses" class="tab-view">
+      
+      <!-- Expense Summary Hero -->
+      <div class="expense-summary-hero">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--ocean-teal-light);">Total Trip Expenditure</div>
+            <div id="expenseTotalSpent" style="font-size: 1.85rem; font-weight: 800; color: var(--text-main); margin-top: 2px;">₹500</div>
+            <div id="expensePrepaidSummary" style="font-size: 0.76rem; color: var(--text-muted); margin-top: 2px;">₹500 prepaid (scooter advance)</div>
+          </div>
+          <button type="button" class="btn-primary" onclick="OntheGoExpenses.openAddModal()" style="min-height: 40px; padding: 8px 14px; font-size: 0.85rem;">
+            ➕ Add Expense
+          </button>
+        </div>
+
+        <!-- Breakdown Bar -->
+        <div id="expenseCategoryBreakdownBar" class="expense-breakdown-bar"></div>
+
+        <!-- Category Legends -->
+        <div id="expenseCategoryLegend" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;"></div>
+      </div>
+
+      <!-- Split / Who Owes Whom Summary Card -->
+      <div id="expenseSplitSummaryCard"></div>
+
+      <!-- Action Row -->
+      <div class="section-header" style="margin-top: 14px;">
+        <h2 class="section-title">🧾 All Logged Expenses</h2>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-sm" onclick="OntheGoExpenses.exportCSV()">💾 Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Expense List -->
+      <div id="expenseListContainer"></div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: MORE HUB -->
+    <!-- ========================================== -->
+    <section id="view-more" class="tab-view">
+      
+      <!-- More Sub-Navigation Carousel -->
+      <div class="day-selector-scroll" style="margin-bottom: 14px;">
+        <button class="rec-filter-btn more-nav-pill active" data-sub="wallet" onclick="OntheGoApp.switchMoreSubTab('wallet')">💼 Contacts & Wallet</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="collaboration" onclick="OntheGoApp.switchMoreSubTab('collaboration')">🤝 Collaboration & Prefs</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="backups" onclick="OntheGoApp.switchMoreSubTab('backups')">🔀 Backup Planner</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="restaurants" onclick="OntheGoApp.switchMoreSubTab('restaurants')">🍽️ Restaurants Directory</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="optional" onclick="OntheGoApp.renderOptionalStops(); OntheGoApp.switchMoreSubTab('optional');">🏖️ Optional Stops</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="checklist" onclick="OntheGoApp.switchMoreSubTab('checklist')">✅ On-the-Go Checklist</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="conflicts" onclick="OntheGoApp.switchMoreSubTab('conflicts')">⏱️ Schedule Conflicts</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="settings" onclick="OntheGoApp.switchMoreSubTab('settings')">⚙️ Settings & Backup</button>
+      </div>
+
+      <!-- SUB-VIEW A: BOOKINGS & CONTACTS WALLET -->
+      <div id="more-sub-wallet" class="more-sub-view">
+        <div class="section-header">
+          <h2 class="section-title">💼 Bookings & Emergency Wallet</h2>
+          <span style="font-size: 0.74rem; color: var(--text-muted);">One-Tap Call & Map</span>
+        </div>
+        <div id="walletContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW B: COLLABORATION & SHARED PREFERENCES -->
+      <div id="more-sub-collaboration" class="more-sub-view" style="display: none;">
+        <div id="collaborationHubContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW C: INTELLIGENT BACKUP PLANNER -->
+      <div id="more-sub-backups" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">🔀 Route-Aware Backup Planner</h2>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Itinerary Stop to Find Backups For:</label>
+          <select id="backupStopSelector" class="form-select" onchange="OntheGoBackups.onStopSelected(this.value)"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Maximum Detour Distance:</label>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="rec-filter-btn detour-chip" data-km="2" onclick="OntheGoBackups.setMaxDetour(2)">Within 2 km</button>
+            <button type="button" class="rec-filter-btn detour-chip active" data-km="5" onclick="OntheGoBackups.setMaxDetour(5)">Within 5 km</button>
+            <button type="button" class="rec-filter-btn detour-chip" data-km="10" onclick="OntheGoBackups.setMaxDetour(10)">Within 10 km</button>
+          </div>
+        </div>
+
+        <div id="backupTargetHeaderInfo"></div>
+        <div id="backupResultsContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW C: SEARCHABLE RESTAURANT DIRECTORY -->
+      <div id="more-sub-restaurants" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">🍽️ Verified Restaurant Directory</h2>
+          <span id="restaurantCountBadge" class="route-meta-badge">22 Places</span>
+        </div>
+
+        <div class="form-group">
+          <input type="text" class="form-input" placeholder="🔍 Search restaurants, dishes, cuisines..." oninput="OntheGoRestaurants.setSearch(this.value)">
+        </div>
+
+        <!-- City Filter -->
+        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+          <button class="rec-filter-btn rest-region-btn active" data-val="all" onclick="OntheGoRestaurants.setRegion('all')">All Regions</button>
+          <button class="rec-filter-btn rest-region-btn" data-val="kochi" onclick="OntheGoRestaurants.setRegion('kochi')">Kochi / Mattancherry</button>
+          <button class="rec-filter-btn rest-region-btn" data-val="alleppey" onclick="OntheGoRestaurants.setRegion('alleppey')">Alleppey / Coast</button>
+        </div>
+
+        <!-- Meal Filter -->
+        <div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; scrollbar-width: none;">
+          <button class="rec-filter-btn rest-meal-btn active" data-val="all" onclick="OntheGoRestaurants.setMeal('all')">All Meals</button>
+          <button class="rec-filter-btn rest-meal-btn" data-val="Breakfast" onclick="OntheGoRestaurants.setMeal('Breakfast')">🍳 Breakfast</button>
+          <button class="rec-filter-btn rest-meal-btn" data-val="Lunch" onclick="OntheGoRestaurants.setMeal('Lunch')">🍱 Lunch</button>
+          <button class="rec-filter-btn rest-meal-btn" data-val="Dinner" onclick="OntheGoRestaurants.setMeal('Dinner')">🍽️ Dinner</button>
+          <button class="rec-filter-btn rest-meal-btn" data-val="Coffee" onclick="OntheGoRestaurants.setMeal('Coffee')">☕ Coffee / Desserts</button>
+        </div>
+
+        <div id="restaurantListContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW D: OPTIONAL SIGHTS & EXPERIENCES -->
+      <div id="more-sub-optional" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">🏖️ Optional Sights & Beaches Directory</h2>
+        </div>
+        <div id="optionalPlacesContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW E: CHECKLIST -->
+      <div id="more-sub-checklist" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">✅ On-the-Go Checklist</h2>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-sm btn-primary-sm" onclick="OntheGoChecklist.openAddTaskModal()">➕ Add Task</button>
+            <button class="btn-sm" onclick="OntheGoChecklist.resetChecklist()">🔄 Reset</button>
+          </div>
+        </div>
+
+        <div id="checklistTotalProgress" style="margin-bottom: 12px;"></div>
+        <div id="checklistContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW F: SCHEDULE CONFLICT ASSISTANT -->
+      <div id="more-sub-conflicts" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">⏱️ Smart Time & Conflict Assistant</h2>
+          <button class="btn-sm btn-primary-sm" onclick="OntheGoTimeHelper.triggerRunningLate()">🏃 "Running Late" Mode</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          Live conflict detector grounds operating days, prayer hours, lighthouse visiting slots, and fixed train commitments.
+        </p>
+        <div id="conflictAssistantContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW G: SETTINGS & BACKUP -->
+      <div id="more-sub-settings" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">⚙️ Trip Settings & Offline Backup</h2>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="stop-card">
+            <h4 style="margin-bottom: 4px;">💾 Data Export & Offline Backup</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+              Export all your custom stops, checklist checkmarks, and logged expenses as a portable JSON file.
+            </p>
+            <button type="button" class="btn-primary btn-block" onclick="OntheGoApp.exportBackupJSON()">
+              💾 Export Itinerary Backup (.JSON)
+            </button>
+            <label class="btn-secondary btn-block" style="margin-top: 8px; cursor: pointer; text-align: center;">
+              📥 Import Backup (.JSON)
+              <input type="file" accept=".json" style="display: none;" onchange="OntheGoApp.importBackupJSON(event)">
+            </label>
+          </div>
+
+          <div class="stop-card">
+            <h4 style="margin-bottom: 4px;">🖨️ Print & PDF Summary</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+              Print or save a full offline paper/PDF copy for your scooter handlebar pouch.
+            </p>
+            <button type="button" class="btn-secondary btn-block" onclick="window.print()">
+              🖨️ Print / Save as PDF
+            </button>
+          </div>
+
+          <div class="stop-card" style="border-color: rgba(239, 68, 68, 0.4);">
+            <h4 style="color: var(--danger); margin-bottom: 4px;">🔄 Master Reset</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+              Reverts all itinerary stops, expenses, and checklists to the original verified master plan.
+            </p>
+            <button type="button" class="btn-block" style="background: var(--danger); color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: 700; cursor: pointer;" onclick="OntheGoApp.resetToDefault()">
+              🔄 Reset to Master Itinerary
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- PERSISTENT MOBILE BOTTOM NAVIGATION -->
+  <!-- ========================================== -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-tab="today">
+      <div class="nav-icon">🏠</div>
+      <div class="nav-label">Today</div>
+    </div>
+    <div class="nav-item" data-tab="itinerary">
+      <div class="nav-icon">📋</div>
+      <div class="nav-label">Itinerary</div>
+    </div>
+    <div class="nav-item" data-tab="map">
+      <div class="nav-icon">🗺️</div>
+      <div class="nav-label">Map</div>
+    </div>
+    <div class="nav-item" data-tab="expenses">
+      <div class="nav-icon">💳</div>
+      <div class="nav-label">Expenses</div>
+    </div>
+    <div class="nav-item" data-tab="more">
+      <div class="nav-icon">⋯</div>
+      <div class="nav-label">More</div>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ADD / EDIT ACTIVITY -->
+  <!-- ========================================== -->
+  <div id="addActivityModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 id="addActModalTitle" class="modal-title">➕ Add Stop to Itinerary</h3>
+        <button class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
+      </div>
+
+      <form onsubmit="OntheGoItinerary.saveNewActivity(event)">
+        <div class="form-group">
+          <label class="form-label">Select Day</label>
+          <select id="newActDay" class="form-select"></select>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">⏱ Scheduled Time</label>
+            <input type="text" id="newActTime" class="form-input" placeholder="e.g. 10:00 AM" required>
+          </div>
+          <div>
+            <label class="form-label">Category</label>
+            <select id="newActCategory" class="form-select">
+              <option value="Sightseeing">Sightseeing</option>
+              <option value="Restaurant">🍱 Meal / Cafe</option>
+              <option value="Beach">🏖️ Beach</option>
+              <option value="Activity">🏄 Activity</option>
+              <option value="Transport">🛵 Transport</option>
+              <option value="Accommodation">🏨 Stay</option>
+              <option value="Temple">🛕 Temple</option>
+              <option value="Museum">🏛️ Museum</option>
+              <option value="Rest">🌙 Rest</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Stop / Place Name</label>
+          <input type="text" id="newActTitle" class="form-input" placeholder="e.g. Visit Mattancherry Palace" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Address / Landmark (Google Maps)</label>
+          <input type="text" id="newActLocation" class="form-input" placeholder="e.g. Palace Rd, Mattancherry">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Est. Cost (₹)</label>
+          <input type="number" id="newActCost" class="form-input" placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes, Tips & Booking Details</label>
+          <textarea id="newActNotes" class="form-textarea" rows="2" placeholder="e.g. Bring sunglasses, entry ticket ₹20"></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block">Save Stop to Itinerary</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ADD / EDIT EXPENSE (STAGE 2) -->
+  <!-- ========================================== -->
+  <div id="addExpenseModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 id="expModalTitle" class="modal-title">➕ Add Trip Expense</h3>
+        <button class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
+      </div>
+
+      <form onsubmit="OntheGoExpenses.saveExpense(event)">
+        <div class="form-group" style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Amount</label>
+            <input type="number" id="expAmount" class="form-input" placeholder="e.g. 450" step="any" required>
+          </div>
+          <div>
+            <label class="form-label">Currency</label>
+            <select id="expCurrency" class="form-select" onchange="OntheGoExpenses.handleCurrencyChange(this.value)">
+              <option value="INR" selected>INR (₹)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="expFxRateRow" class="form-group" style="display: none;">
+          <label class="form-label">Exchange Rate to INR (₹)</label>
+          <input type="number" id="expFxRate" class="form-input" step="0.01" value="1.0">
+          <small style="color: var(--text-muted); font-size: 0.72rem;">Stored conversion rate to settle in Indian Rupee minor units (paise).</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" id="expDesc" class="form-input" placeholder="e.g. Fort House dinner & Karimeen" required>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Category</label>
+            <select id="expCategory" class="form-select">
+              <option value="Food and drinks">🍱 Food and drinks</option>
+              <option value="Scooter Rental">🛵 Scooter Rental</option>
+              <option value="Petrol">⛽ Petrol</option>
+              <option value="Accommodation">🏨 Accommodation</option>
+              <option value="Activities">🏄 Activities</option>
+              <option value="Entry tickets">🎟️ Entry tickets</option>
+              <option value="Ferry / Water Metro">⛴️ Water Metro / Ferry</option>
+              <option value="Parking">🅿️ Parking</option>
+              <option value="Train">🚆 Train</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Miscellaneous">💡 Miscellaneous</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Date</label>
+            <input type="date" id="expDate" class="form-input" required>
+          </div>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Paid By</label>
+            <select id="expPaidBy" class="form-select">
+              <option value="traveller-1">🛵 Vishnu</option>
+              <option value="traveller-2">🌴 Co-rider</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Split Method</label>
+            <select id="expSplitMethod" class="form-select" onchange="OntheGoExpenses.toggleSplitInputs(this.value)">
+              <option value="equal">50/50 Equal Split</option>
+              <option value="percentage">Percentage Split</option>
+              <option value="custom">Custom Split</option>
+              <option value="personal">Personal (Excluded)</option>
+              <option value="repayment">Debt Repayment / Settlement</option>
+              <option value="refund">Refund / Credit</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="expPctSplitRow" class="form-group" style="display: none;">
+          <label class="form-label">Vishnu's Percentage Share (%)</label>
+          <input type="number" id="expPctT1" class="form-input" placeholder="e.g. 60" min="0" max="100" value="50">
+          <small style="color: var(--text-muted); font-size: 0.72rem;">Co-rider share will automatically be 100% minus this amount.</small>
+        </div>
+
+        <div id="expCustomSplitRow" class="form-group" style="display: none;">
+          <label class="form-label">Vishnu's Share (₹)</label>
+          <input type="number" id="expCustomT1" class="form-input" placeholder="e.g. 250" step="any">
+          <small style="color: var(--text-muted); font-size: 0.72rem;">Co-rider share will automatically take the remainder.</small>
+        </div>
+
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.84rem; cursor: pointer;">
+            <input type="checkbox" id="expIsPrepaid" style="width: 18px; height: 18px; accent-color: var(--seafoam-green);">
+            <span>Mark as Prepaid Deposit (Like ₹500 Scooter Advance)</span>
+          </label>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Notes (Optional)</label>
+            <input type="text" id="expNotes" class="form-input" placeholder="e.g. Paid via GPay / UPI">
+          </div>
+          <div>
+            <label class="form-label">Receipt / Ref #</label>
+            <input type="text" id="expReceiptNote" class="form-input" placeholder="e.g. Bill #429, Txn ref">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block">Save Expense</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: EDIT SHARED PREFERENCES (STAGE 2) -->
+  <!-- ========================================== -->
+  <div id="editPreferencesModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 class="modal-title">🌴 Edit Shared Travel Preferences</h3>
+        <button class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
+      </div>
+
+      <form onsubmit="OntheGoCollaboration.savePreferencesFromModal(event)">
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Dietary Preference</label>
+            <select id="prefDietary" class="form-select">
+              <option value="Non-Vegetarian (Local Fish, Prawns, Duck, Beef Fry, Chicken)">Non-Vegetarian (Local Seafood & Meats)</option>
+              <option value="Vegetarian (Pure Kerala Sadhya, Appam, Idiyappam)">Vegetarian (Pure Kerala Sadhya, Veg)</option>
+              <option value="Pescatarian (Local Fish & Seafood)">Pescatarian (Local Seafood)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Spice Tolerance</label>
+            <select id="prefSpice" class="form-select">
+              <option value="Mild">Mild</option>
+              <option value="Medium">Medium (Balanced)</option>
+              <option value="High (Authentic Kerala Shap Style)">High (Authentic Kerala Shap Style)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Max Walking (km/day)</label>
+            <input type="number" id="prefWalking" class="form-input" min="1" max="15" step="0.5" required>
+          </div>
+          <div>
+            <label class="form-label">Max Ride Stretch (mins)</label>
+            <input type="number" id="prefRide" class="form-input" min="15" max="180" step="15" required>
+          </div>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Sightseeing Pace</label>
+            <select id="prefPace" class="form-select">
+              <option value="Relaxed (Max 2-3 stops/day)">Relaxed (Max 2-3 stops/day)</option>
+              <option value="Moderate (Balanced sightseeing, sunset rests)">Moderate (Balanced, sunset rests)</option>
+              <option value="Fast (Pack everything in)">Fast (Pack everything in)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Budget Tier</label>
+            <select id="prefBudgetTier" class="form-select">
+              <option value="Budget-conscious">Budget-conscious</option>
+              <option value="Comfortable / Moderate">Comfortable / Moderate</option>
+              <option value="Luxury / Indulgent">Luxury / Indulgent</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Target Daily Budget (₹)</label>
+            <input type="number" id="prefDailyBudget" class="form-input" step="100" required>
+          </div>
+          <div>
+            <label class="form-label">Afternoon Rest Window</label>
+            <input type="text" id="prefRestWindow" class="form-input" placeholder="e.g. 1:30 PM - 3:30 PM">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block">Save Preferences</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet Map Script -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Application Modules -->
+  <script src="./js/data.js"></script>
+  <script src="./js/migrations.js"></script>
+  <script src="./js/collaboration.js"></script>
+  <script src="./js/timehelper.js"></script>
+  <script src="./js/itinerary.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/expenses.js"></script>
+  <script src="./js/backups.js"></script>
+  <script src="./js/restaurants.js"></script>
+  <script src="./js/checklist.js"></script>
+  <script src="./js/wallet.js"></script>
+  <script src="./js/app.js"></script>
+
+  <!-- Helper for Optional Places rendering -->
+  <script>
+    OntheGoApp.renderOptionalStops = function() {
+      const container = document.getElementById("optionalPlacesContainer");
+      if (!container) return;
+      const places = OntheGoDefaultData.optionalPlaces || [];
+
+      container.innerHTML = places.map(p => `
+        <div class="stop-card" style="margin-bottom: 10px;">
+          <div class="stop-header">
+            <div>
+              <span class="stop-cat-badge cat-${p.category.toLowerCase()}">${p.category}</span>
+              <span style="font-size: 0.74rem; font-weight: 700; color: var(--ocean-teal-light); margin-left: 6px;">Day ${p.recommendedDay} Rec</span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">${p.area} • +${p.detourKm} km detour</span>
+          </div>
+          <div style="font-size: 1rem; font-weight: 800; color: var(--text-main); margin: 3px 0;">${p.name}</div>
+          <div style="font-size: 0.74rem; color: var(--text-dim); margin-bottom: 6px;">
+            ⏱ <b>Visiting Hours:</b> ${p.visitingHours} • 💰 <b>Entry:</b> ${p.entryFee}
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">${p.desc}</p>
+          <div class="stop-actions-row">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name + ', ' + p.area + ', Kerala')}" target="_blank" rel="noopener" class="btn-nav-action">
+              🧭 Directions
+            </a>
+            <button type="button" class="btn-sm btn-primary-sm" onclick="OntheGoApp.quickAddOptionalToItinerary('${p.id}')">
+              ➕ Add to Itinerary
+            </button>
+          </div>
+        </div>
+      `).join("");
+    };
+
+    OntheGoApp.quickAddOptionalToItinerary = function(optId) {
+      const p = (OntheGoDefaultData.optionalPlaces || []).find(item => item.id === optId);
+      if (!p) return;
+      const trip = OntheGoApp.getActiveTrip();
+      const targetDay = trip.days.find(d => d.dayNumber === p.recommendedDay) || trip.days[0];
+
+      const newStop = {
+        id: "act-opt-" + Date.now(),
+        order: (targetDay.activities?.length || 0) + 1,
+        title: p.name,
+        time: "Flexible Slot",
+        category: p.category,
+        location: `${p.name}, ${p.area}`,
+        lat: p.lat,
+        lng: p.lng,
+        cost: 0,
+        notes: `Optional stop: ${p.desc}`,
+        status: "pending",
+        verified: true,
+        mapUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name + ', ' + p.area)}`
+      };
+
+      targetDay.activities = targetDay.activities || [];
+      targetDay.activities.push(newStop);
+      OntheGoApp.saveState();
+      OntheGoApp.showToast(`Added "${p.name}" to Day ${targetDay.dayNumber}! ✓`);
+      OntheGoItinerary.renderCurrentDay();
+      OntheGoApp.renderDashboard();
+    };
+  </script>
+
+</body>
+</html>

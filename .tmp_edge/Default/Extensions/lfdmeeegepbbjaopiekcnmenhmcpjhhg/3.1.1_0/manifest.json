@@ -1,0 +1,46 @@
+{
+   "action": {
+      "default_icon": {
+         "16": "images/icons/icon16.png",
+         "48": "images/icons/icon48.png"
+      },
+      "default_popup": "popup.html"
+   },
+   "author": "qwerpdf.com",
+   "background": {
+      "service_worker": "js/background.js"
+   },
+   "content_scripts": [ {
+      "all_frames": false,
+      "css": [ "css/popupa.css" ],
+      "js": [ "js/content_script.js" ],
+      "matches": [ "\u003Call_urls>" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": false,
+      "js": [ "js/content_script_installed.js" ],
+      "matches": [ "*://*.qwerpdf.com/*" ],
+      "run_at": "document_end"
+   } ],
+   "default_locale": "en",
+   "description": "__MSG_ext_description__",
+   "homepage_url": "https://www.qwerpdf.com/",
+   "host_permissions": [ "https://*.qwerpdf.com/" ],
+   "icons": {
+      "128": "images/icons/icon128.png",
+      "16": "images/icons/icon16.png",
+      "32": "images/icons/icon32.png",
+      "48": "images/icons/icon48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsDPIri9NxzLU44SgLa+39+x9OLd/zxqRt9kWs4zsaIlwyapDywX4l4xMhl83CnFunh8MDk1HxPlYcvgCW8m4Hrnm3tdqfOq1eZpZ8mBosqTASnl/A2DYV6ysOn/VOftabUS4gYvGwlIqAQNZxARosd3COgKd/PH6/qWqTVH6TJP/V1Y7IvlMG8O/L6fHYGKBP6XfZQiyw9Of/EVFpveuM50KsWbtxittygyGM1c1AGGpvAndP4MYsEdpHq0v48ECn2uQefvz8oAA77PQJwaEu55SO2g94N6XLzJBDNxPL2b5uI+F3wB9Z72MTieIbnM3QVQRjZHmYpprJYgPH91XXQIDAQAB",
+   "manifest_version": 3,
+   "name": "__MSG_ext_name__",
+   "permissions": [ "storage", "notifications" ],
+   "short_name": "__MSG_ext_name__",
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "3.1.1",
+   "web_accessible_resources": [ {
+      "matches": [ "\u003Call_urls>" ],
+      "resources": [ "index.html" ]
+   } ]
+}

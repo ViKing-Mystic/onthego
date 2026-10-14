@@ -1,0 +1,16 @@
+{
+  "name": "OntheGO — Interactive Travel Companion",
+  "short_name": "OntheGO",
+  "description": "Your trip. Your pace. Everything on the go. Offline-capable 5-day Kerala scooter road trip companion.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#faf7f2",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%230d9488'/><path d='M30 65 L50 25 L70 65 L50 52 Z' fill='white'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
