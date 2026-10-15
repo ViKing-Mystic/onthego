@@ -1180,11 +1180,17 @@
       }).setView([9.9650, 76.2470], 14);
 
       const cartoKey = (typeof window !== "undefined" && (window.CARTO_API_KEY || (window.localStorage && localStorage.getItem("carto_api_key")))) || "cb1_4itb_1_cf9e5a75cd3fbf7109538e38";
-      L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`, {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      const tileUrl = cartoKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoKey)}`
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
       }).addTo(map);
+
+      setTimeout(() => { if (map) map.invalidateSize(); }, 150);
 
       markersLayer = L.layerGroup().addTo(map);
       updateMapMarkers();

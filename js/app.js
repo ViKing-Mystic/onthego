@@ -959,11 +959,34 @@ window.OntheGoApp = {
 
     statusEl.innerHTML = `<span style="color: var(--ocean-teal); font-weight: 600;">🔄 Testing Carto Voyager basemap tiles...</span>`;
 
+    // Detect if user entered a Google Maps API Key
+    if (key.startsWith("AIzaSy") || (key.startsWith("AIza") && key.length > 30)) {
+      statusEl.innerHTML = `
+        <div style="background: rgba(234, 88, 12, 0.1); border-left: 3px solid var(--accent); padding: 8px; border-radius: 4px; color: var(--text-main); font-size: 0.78rem;">
+          <b>⚠️ Google Maps Key Detected:</b> You entered a Google Maps API Key (<code>AIza...</code>).
+          <div style="margin-top: 4px; color: var(--text-muted); font-size: 0.74rem; line-height: 1.35;">
+            OntheGO uses <b>Leaflet</b> with <b>CARTO Voyager / OpenStreetMap</b> raster tiles for in-app maps, which cannot authenticate using Google Maps keys. For Google Maps turn-by-turn navigation, click the <b>🧭 Open in Google Maps</b> button on any day route (no API key needed).
+          </div>
+        </div>`;
+      return;
+    }
+
     try {
-      const url = `https://a.basemaps.cartocdn.com/rastertiles/voyager/13/7500/4900.png?api_key=${encodeURIComponent(key)}`;
+      // CARTO basemaps require ?key= parameter (not ?api_key=)
+      const url = `https://a.basemaps.cartocdn.com/rastertiles/voyager/13/7500/4900.png?key=${encodeURIComponent(key)}`;
       const res = await fetch(url, { method: "GET", mode: "cors" });
-      if (res.ok) {
+      const etag = res.headers.get("etag") || "";
+
+      if (res.ok && !etag.includes("wm-")) {
         statusEl.innerHTML = `<span style="color: var(--success); font-weight: 700;">✓ Connected to Carto Basemaps Voyager! Key is valid and authorized (HTTP 200).</span>`;
+      } else if (res.ok && etag.includes("wm-")) {
+        statusEl.innerHTML = `
+          <div style="background: rgba(234, 88, 12, 0.1); border-left: 3px solid var(--warning); padding: 8px; border-radius: 4px; color: var(--text-main); font-size: 0.78rem;">
+            <b>⚠️ Watermark Tile Detected:</b> Carto server returned an <i>"API KEY REQUIRED"</i> watermark (ETag: <code>${this.escapeHTML(etag)}</code>).
+            <div style="margin-top: 4px; color: var(--text-muted); font-size: 0.74rem;">
+              The entered key was rejected by Carto. OntheGO will automatically fall back to free <b>OpenStreetMap</b> tiles so your route remains visible.
+            </div>
+          </div>`;
       } else {
         statusEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">✗ Carto server returned HTTP ${res.status}: ${res.statusText}</span>`;
       }
@@ -994,13 +1017,13 @@ window.OntheGoApp = {
         </div>
 
         <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
-          OntheGO renders interactive Leaflet route maps with Carto Voyager tiles. Tiles are pre-cached for offline coastal exploration.
+          OntheGO renders interactive Leaflet route maps with Carto Voyager tiles (parameterized with <code>?key=...</code>). If no key is set or tiles fail, it automatically falls back to OpenStreetMap.
         </p>
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
           <div>
             <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
-              Carto Maps API Key
+              Carto Basemaps API Key (carto.com/basemaps/apikey)
             </label>
             <div style="display: flex; gap: 6px;">
               <input type="password" id="cartoApiKeyInput" class="form-input" style="flex: 1; font-size: 0.82rem; font-family: monospace;" placeholder="cb1_..." value="${this.escapeHTML(currentKey || '')}">
@@ -1008,6 +1031,9 @@ window.OntheGoApp = {
             </div>
             <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
               Active API Key: <code style="font-size: 0.75rem; background: var(--bg-surface); padding: 1px 4px; border-radius: 4px;">${this.escapeHTML(currentKey)}</code>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; line-height: 1.3;">
+              💡 <b>Note:</b> Google Maps API keys (<code>AIza...</code>) cannot be used with Leaflet raster tiles. Day routes link directly to external Google Maps navigation without needing an API key.
             </div>
           </div>
         </div>

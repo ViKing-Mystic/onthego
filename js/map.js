@@ -46,9 +46,10 @@ window.OntheGoMap = {
   updateTileLayer() {
     if (!this.map || typeof L === "undefined") return;
     const key = this.getApiKey();
+    // CARTO basemaps require ?key= parameter (not ?api_key=)
     const cartoTileUrl = key
-      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${key}`
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(key)}`
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
     if (this.currentTileLayer) {
       try { this.map.removeLayer(this.currentTileLayer); } catch (_) {}
@@ -59,6 +60,23 @@ window.OntheGoMap = {
       subdomains: "abcd",
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(this.map);
+
+    // If Carto tiles error out (e.g. invalid key or network restrictions), automatically fall back to OSM
+    if (key) {
+      let errCount = 0;
+      this.currentTileLayer.on("tileerror", () => {
+        errCount++;
+        if (errCount >= 3 && this.currentTileLayer && !this._osmFallbackActive) {
+          this._osmFallbackActive = true;
+          console.warn("Carto tile errors encountered; falling back to OpenStreetMap tiles.");
+          try { this.map.removeLayer(this.currentTileLayer); } catch (_) {}
+          this.currentTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          }).addTo(this.map);
+        }
+      });
+    }
   },
 
   init() {
@@ -88,6 +106,10 @@ window.OntheGoMap = {
 
       this.renderDayRouteMap();
       this.renderDayFilterButtons();
+
+      setTimeout(() => {
+        if (this.map) this.map.invalidateSize();
+      }, 150);
     } catch (e) {
       console.warn("Leaflet map initialization failed, loading offline fallback:", e);
       this.renderOfflineFallback();
