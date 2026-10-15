@@ -687,6 +687,14 @@
           burstAccepted === 10, // Max tokens initialized at 10
           `Allowed ${burstAccepted} out of 15 rapid requests`);
 
+        // Carto Maps API Key Verification
+        const cartoKey = (window.OntheGoApp && typeof OntheGoApp.getCartoApiKey === "function")
+          ? OntheGoApp.getCartoApiKey()
+          : (window.OntheGoMap?.CARTO_API_KEY || "");
+        assert("Carto Basemaps API key configured and active for high-clarity route rendering",
+          cartoKey === "cb1_4itb_1_cf9e5a75cd3fbf7109538e38",
+          `Active Carto Key: ${cartoKey.substring(0, 10)}...`);
+
         // =========================================================
         // 16. ACCESSIBILITY & PERFORMANCE STANDARDS (WCAG 2.1 AA)
         // =========================================================

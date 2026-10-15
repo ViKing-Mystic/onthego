@@ -190,7 +190,7 @@ The entire OntheGO application is designed to operate at **₹0.00 / month** und
 | :--- | :--- | :--- | :--- | :--- |
 | **Google Gemini 1.5 Flash** | Multimodal Assistant & Proposal Extraction | 15 Requests/Min, 1M Tokens/Min (Free) | ~35 conversational interactions | **₹0.00** ($0.00) |
 | **Open-Meteo API** | Live Weather & Monsoon Forecasts | 10,000 calls/day (Free, no key required) | ~50 weather checks | **₹0.00** ($0.00) |
-| **OpenStreetMap / Carto** | Map tiles & route rendering | Free public open-access tiles | ~200 tile downloads (cached in SW) | **₹0.00** ($0.00) |
+| **OpenStreetMap / Carto** | Map tiles & route rendering (Voyager Basemaps) | Free tier / `cb1_4itb_1_cf9e5a75cd3fbf7109538e38` | ~200 tile downloads (cached in SW) | **₹0.00** ($0.00) |
 | **Supabase PostgreSQL** | Cloud Database, Auth & Real-Time Sync | 500 MB DB, 50k MAU, 5 GB Bandwidth (Free) | < 10 MB DB, 2 users, < 50 MB egress | **₹0.00** ($0.00) |
 | **Static Hosting (Pages/Netlify)** | PWA App Shell delivery | Unlimited / 100 GB Bandwidth (Free) | < 25 MB total app shell bandwidth | **₹0.00** ($0.00) |
 | **TOTAL** | | | | **₹0.00 (Free)** |

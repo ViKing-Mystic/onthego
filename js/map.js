@@ -13,7 +13,8 @@ window.OntheGoMap = {
   activeCategoryFilter: "all",
   showBackupsOnMap: false,
   isInitialized: false,
-  CARTO_API_KEY: "cb1_4itb_1_cf9e5a75cd3fbf7109538e38",
+  DEFAULT_CARTO_KEY: "cb1_4itb_1_cf9e5a75cd3fbf7109538e38",
+  CARTO_API_KEY: (typeof window !== "undefined" && (window.CARTO_API_KEY || (window.localStorage && localStorage.getItem("carto_api_key")) || (window.ENV && window.ENV.CARTO_API_KEY))) || "cb1_4itb_1_cf9e5a75cd3fbf7109538e38",
 
   // Scenic Chellanam - Andhakaranazhi - Mararikulam coastal highway coordinates
   COASTAL_HIGHWAY_WAYPOINTS: [
@@ -25,6 +26,40 @@ window.OntheGoMap = {
     [9.5995, 76.2980], // Marari Beach
     [9.5310, 76.3210]  // Thumpoly / Alleppey North
   ],
+
+  getApiKey() {
+    return this.CARTO_API_KEY || (typeof window !== "undefined" && window.localStorage && localStorage.getItem("carto_api_key")) || this.DEFAULT_CARTO_KEY;
+  },
+
+  setApiKey(key) {
+    this.CARTO_API_KEY = key || this.DEFAULT_CARTO_KEY;
+    if (typeof window !== "undefined" && window.localStorage) {
+      if (key) {
+        localStorage.setItem("carto_api_key", key);
+      } else {
+        localStorage.removeItem("carto_api_key");
+      }
+    }
+    this.updateTileLayer();
+  },
+
+  updateTileLayer() {
+    if (!this.map || typeof L === "undefined") return;
+    const key = this.getApiKey();
+    const cartoTileUrl = key
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${key}`
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+    if (this.currentTileLayer) {
+      try { this.map.removeLayer(this.currentTileLayer); } catch (_) {}
+    }
+
+    this.currentTileLayer = L.tileLayer(cartoTileUrl, {
+      maxZoom: 19,
+      subdomains: "abcd",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(this.map);
+  },
 
   init() {
     const container = document.getElementById("leafletMapContainer");
@@ -46,15 +81,7 @@ window.OntheGoMap = {
         attributionControl: false
       }).setView([9.9650, 76.2470], 13);
 
-      const cartoTileUrl = this.CARTO_API_KEY
-        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${this.CARTO_API_KEY}`
-        : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-      L.tileLayer(cartoTileUrl, {
-        maxZoom: 19,
-        subdomains: "abcd",
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-      }).addTo(this.map);
+      this.updateTileLayer();
 
       this.markersLayer = L.layerGroup().addTo(this.map);
       this.isInitialized = true;

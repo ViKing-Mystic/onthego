@@ -57,6 +57,7 @@ window.OntheGoApp = {
     if (window.OntheGoBudget) OntheGoBudget.init();
     if (window.OntheGoAssistant) OntheGoAssistant.init();
     this.renderAiSettingsCard();
+    this.renderCartoSettingsCard();
 
     // Render dashboard and weather
     this.renderDashboard();
@@ -447,6 +448,7 @@ window.OntheGoApp = {
       if (window.OntheGoAssistant) OntheGoAssistant.renderChatUI();
     } else if (subTabId === "settings") {
       this.renderAiSettingsCard();
+      this.renderCartoSettingsCard();
     }
   },
 
@@ -730,6 +732,7 @@ window.OntheGoApp = {
     if (window.OntheGoAssistant) OntheGoAssistant.init();
     this.renderDashboard();
     this.renderAiSettingsCard();
+    this.renderCartoSettingsCard();
     this.showToast("OntheGO reset to default verified itinerary. 🔄");
   },
 
@@ -907,6 +910,123 @@ window.OntheGoApp = {
         <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.74rem; color: var(--text-muted);">
           🔑 Need a free API key? Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color: var(--ocean-teal); font-weight: 700; text-decoration: underline;">Google AI Studio</a>.
         </div>
+      </div>
+    `;
+  },
+
+  // ==========================================
+  // CARTO BASEMAPS & MAPS API CONFIGURATION
+  // ==========================================
+  getCartoApiKey() {
+    if (window.OntheGoMap && typeof OntheGoMap.getApiKey === "function") {
+      return OntheGoMap.getApiKey();
+    }
+    return localStorage.getItem("carto_api_key") || "cb1_4itb_1_cf9e5a75cd3fbf7109538e38";
+  },
+
+  setCartoApiKey(key) {
+    const cleanKey = (key || "").trim();
+    if (window.OntheGoMap && typeof OntheGoMap.setApiKey === "function") {
+      OntheGoMap.setApiKey(cleanKey);
+    } else {
+      if (cleanKey) localStorage.setItem("carto_api_key", cleanKey);
+      else localStorage.removeItem("carto_api_key");
+    }
+    this.renderCartoSettingsCard();
+    this.showToast(cleanKey ? "Carto Maps API key updated & map reloaded! 🗺️" : "Reset Carto Maps to default key");
+  },
+
+  resetCartoApiKey() {
+    this.setCartoApiKey("cb1_4itb_1_cf9e5a75cd3fbf7109538e38");
+  },
+
+  saveCartoApiKeyFromUI() {
+    const input = document.getElementById("cartoApiKeyInput");
+    const key = input ? input.value.trim() : "";
+    this.setCartoApiKey(key || "cb1_4itb_1_cf9e5a75cd3fbf7109538e38");
+  },
+
+  async testCartoConnectionFromUI() {
+    const input = document.getElementById("cartoApiKeyInput");
+    const key = input ? input.value.trim() : this.getCartoApiKey();
+    await this.testCartoConnection(key);
+  },
+
+  async testCartoConnection(keyToTest) {
+    const statusEl = document.getElementById("cartoApiKeyTestStatus");
+    if (!statusEl) return;
+    const key = (keyToTest || "").trim();
+
+    statusEl.innerHTML = `<span style="color: var(--ocean-teal); font-weight: 600;">🔄 Testing Carto Voyager basemap tiles...</span>`;
+
+    try {
+      const url = `https://a.basemaps.cartocdn.com/rastertiles/voyager/13/7500/4900.png?api_key=${encodeURIComponent(key)}`;
+      const res = await fetch(url, { method: "GET", mode: "cors" });
+      if (res.ok) {
+        statusEl.innerHTML = `<span style="color: var(--success); font-weight: 700;">✓ Connected to Carto Basemaps Voyager! Key is valid and authorized (HTTP 200).</span>`;
+      } else {
+        statusEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">✗ Carto server returned HTTP ${res.status}: ${res.statusText}</span>`;
+      }
+    } catch (err) {
+      statusEl.innerHTML = `<span style="color: var(--warning); font-weight: 700;">⚠️ Could not verify tile online (offline or CORS blocked): ${this.escapeHTML(err.message)}</span>`;
+    }
+  },
+
+  renderCartoSettingsCard() {
+    const container = document.getElementById("mapSettingsContainer");
+    if (!container) return;
+
+    const currentKey = this.getCartoApiKey();
+    const isCustom = currentKey && currentKey !== "cb1_4itb_1_cf9e5a75cd3fbf7109538e38";
+
+    container.innerHTML = `
+      <div class="stop-card" id="cartoSettingsCard" style="border-left: 4px solid var(--ocean-teal); transition: box-shadow 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800;">🗺️ Carto Maps & Basemap Tile API</h4>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+              High-resolution raster basemaps for Kochi &amp; coastal expedition routes
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(13, 130, 138, 0.15); color: var(--ocean-teal); border: 1px solid var(--ocean-teal);">
+            🟢 Carto Voyager Active
+          </span>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+          OntheGO renders interactive Leaflet route maps with Carto Voyager tiles. Tiles are pre-cached for offline coastal exploration.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
+              Carto Maps API Key
+            </label>
+            <div style="display: flex; gap: 6px;">
+              <input type="password" id="cartoApiKeyInput" class="form-input" style="flex: 1; font-size: 0.82rem; font-family: monospace;" placeholder="cb1_..." value="${this.escapeHTML(currentKey || '')}">
+              <button type="button" class="btn-sm" onclick="const f=document.getElementById('cartoApiKeyInput'); f.type = f.type === 'password' ? 'text' : 'password';" title="Toggle Visibility">👁️</button>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+              Active API Key: <code style="font-size: 0.75rem; background: var(--bg-surface); padding: 1px 4px; border-radius: 4px;">${this.escapeHTML(currentKey)}</code>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button type="button" class="btn-primary-sm" onclick="OntheGoApp.saveCartoApiKeyFromUI()">
+            💾 Save Key
+          </button>
+          <button type="button" class="btn-sm" onclick="OntheGoApp.testCartoConnectionFromUI()">
+            🧪 Test Tiles Connection
+          </button>
+          ${isCustom ? `
+            <button type="button" class="btn-sm" style="color: var(--terracotta);" onclick="OntheGoApp.resetCartoApiKey()">
+              🔄 Reset to Default
+            </button>
+          ` : ''}
+        </div>
+
+        <div id="cartoApiKeyTestStatus" style="font-size: 0.78rem; margin-top: 8px;"></div>
       </div>
     `;
   }

@@ -74,8 +74,8 @@ No build steps, bundlers, or npm installations are required. OntheGO runs direct
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/vishnukp/OntheGo.git
-cd OntheGo
+git clone https://github.com/ViKing-Mystic/onthego.git
+cd onthego
 
 # 2. Start any local static file server
 # Using Python:
@@ -94,7 +94,7 @@ open http://localhost:8000
 
 Comprehensive end-to-end tests verify all 16 architectural pillars:
 
-- **`test_production_verification.html`**: 59/59 tests passing (100%)
+- **`test_production_verification.html`**: 60/60 tests passing (100%)
 - **`test_stage7.html`**: 45/45 tests passing (100%)
 - **`test_stage5.html`**: 44/44 tests passing (100%)
 
