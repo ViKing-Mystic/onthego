@@ -23,21 +23,32 @@
 
   <!-- App Header -->
   <header class="app-header">
-    <div class="brand-section">
+    <a href="#/start" class="brand-section" style="text-decoration: none; color: inherit;" title="OntheGO - Welcome Home">
       <div class="brand-logo-icon">🛵</div>
       <div class="brand-text-block">
         <span class="brand-title">OntheGO</span>
         <span class="brand-tagline">Your trip. Your pace. Everything on the go.</span>
       </div>
-    </div>
+    </a>
 
     <!-- Desktop Navigation Tabs -->
     <nav class="desktop-nav-tabs">
-      <button class="desktop-nav-tab-btn active" data-tab="today">🏠 Today</button>
-      <button class="desktop-nav-tab-btn" data-tab="itinerary">📋 Itinerary</button>
-      <button class="desktop-nav-tab-btn" data-tab="map">🗺️ Map & Routes</button>
-      <button class="desktop-nav-tab-btn" data-tab="expenses">💳 Expenses</button>
-      <button class="desktop-nav-tab-btn" data-tab="more">⋯ More</button>
+      <button type="button" class="desktop-nav-tab-btn active" data-tab="overview" onclick="OntheGoApp.navigateToTab('overview')">🏠 Overview</button>
+      <button type="button" class="desktop-nav-tab-btn" data-tab="itinerary" onclick="OntheGoApp.navigateToTab('itinerary')">📋 Itinerary</button>
+      <button type="button" class="desktop-nav-tab-btn" data-tab="explore" onclick="OntheGoApp.navigateToTab('explore')">🧭 Explore</button>
+      <button type="button" class="desktop-nav-tab-btn" data-tab="budget" onclick="OntheGoApp.navigateToTab('budget')">💳 Budget</button>
+      <div class="desktop-more-dropdown-wrapper">
+        <button type="button" class="desktop-nav-tab-btn" data-tab="more" onclick="OntheGoApp.toggleMoreDropdown(event)">⋯ More ▾</button>
+        <div id="desktopMoreMenu" class="dropdown-menu" style="display: none;">
+          <a href="#/bookings" class="dropdown-item" onclick="OntheGoApp.navigateToTab('bookings'); OntheGoApp.closeMoreDropdown();">💼 Bookings &amp; Essentials</a>
+          <a href="#/shared" class="dropdown-item" onclick="OntheGoApp.navigateToTab('shared'); OntheGoApp.closeMoreDropdown();">🤝 Shared Trip &amp; Prefs</a>
+          <a href="#/memories" class="dropdown-item" onclick="OntheGoApp.navigateToTab('memories'); OntheGoApp.closeMoreDropdown();">📖 Memories &amp; Reports</a>
+          <a href="#/assistant" class="dropdown-item" onclick="OntheGoApp.navigateToTab('assistant'); OntheGoApp.closeMoreDropdown();">🤖 AI Trip Assistant</a>
+          <a href="#/settings" class="dropdown-item" onclick="OntheGoApp.navigateToTab('settings'); OntheGoApp.closeMoreDropdown();">⚙️ Trip Settings</a>
+          <div class="dropdown-divider"></div>
+          <a href="#/start" class="dropdown-item" onclick="OntheGoApp.navigateToTab('start'); OntheGoApp.closeMoreDropdown();">🏠 Welcome Page</a>
+        </div>
+      </div>
     </nav>
 
     <div class="header-actions">
@@ -54,7 +65,7 @@
       <button type="button" id="themeToggleBtn" class="icon-btn" onclick="OntheGoApp.toggleTheme()" title="Toggle Dark/Light Mode">
         ☀️
       </button>
-      <button type="button" class="icon-btn" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('settings');" title="Settings & Backup">
+      <button type="button" class="icon-btn" onclick="OntheGoApp.navigateToTab('settings')" title="Settings & Backup">
         ⚙️
       </button>
     </div>
@@ -64,7 +75,139 @@
   <main class="app-container">
 
     <!-- ========================================== -->
-    <!-- VIEW 1: HOME DASHBOARD (TODAY) -->
+    <!-- VIEW 0: START / LANDING PAGE (PAGE 1) -->
+    <!-- ========================================== -->
+    <section id="view-start" class="tab-view">
+      <div class="start-page-container">
+        
+        <div class="start-hero">
+          <div class="start-badge">🌴 Kerala Coastal Expedition • 16–20 Oct 2026</div>
+          <h1 class="start-title">Your Kerala Coastal Companion.<br>Planned to Perfection.</h1>
+          <p class="start-description">
+            A lightweight, mobile-first travel companion built for two travellers navigating Kochi and Alleppey on a scooter. Live itinerary, shared expenses, route navigation, and verified backup options.
+          </p>
+
+          <div class="start-artwork-container">
+            <svg viewBox="0 0 380 90" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="max-height: 90px;">
+              <!-- Subtle Coastal Waves -->
+              <path d="M0,60 C40,48 80,72 120,60 C160,48 200,72 240,60 C280,48 320,72 380,60 L380,90 L0,90 Z" fill="rgba(77, 154, 152, 0.15)"/>
+              <path d="M0,70 C50,62 100,78 150,70 C200,62 250,78 300,70 C340,64 360,74 380,70 L380,90 L0,90 Z" fill="rgba(63, 121, 104, 0.25)"/>
+              <!-- Palm Tree Silhouette -->
+              <path d="M60,65 Q65,40 70,25 Q68,18 64,15 C60,18 55,25 56,35 Z" fill="#3F7968"/>
+              <path d="M70,25 C60,18 40,20 30,28 C42,28 58,26 70,25 Z" fill="#3F7968"/>
+              <path d="M70,25 C75,15 90,12 105,18 C92,20 80,22 70,25 Z" fill="#3F7968"/>
+              <path d="M70,25 C62,12 70,0 80,2 C78,12 75,18 70,25 Z" fill="#4D9A98"/>
+              <path d="M70,25 C58,16 52,6 50,2 C56,10 62,18 70,25 Z" fill="#4D9A98"/>
+              <!-- Coastal Road Line -->
+              <path d="M120,65 L360,65" stroke="#C7795A" stroke-width="2.5" stroke-dasharray="6,4"/>
+              <!-- Scooter Motif -->
+              <g transform="translate(230, 42)">
+                <circle cx="8" cy="18" r="5" fill="#29332F"/>
+                <circle cx="28" cy="18" r="5" fill="#29332F"/>
+                <path d="M8,18 L16,18 L22,12 L28,18" stroke="#3F7968" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M22,12 L18,6 L14,6" stroke="#29332F" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <circle cx="22" cy="5" r="2.5" fill="#C7795A"/>
+              </g>
+              <!-- Sun / Lighthouse Light -->
+              <circle cx="330" cy="24" r="12" fill="rgba(199, 121, 90, 0.2)"/>
+              <circle cx="330" cy="24" r="7" fill="#C7795A"/>
+            </svg>
+          </div>
+
+          <div class="start-action-row">
+            <button type="button" id="startOpenTripBtn" class="start-primary-btn" onclick="OntheGoApp.openActiveTrip()">
+              🛵 Open My Trip (Kochi–Alleppey) ➔
+            </button>
+            <button type="button" class="start-secondary-btn" onclick="OntheGoApp.openNewTripModal()">
+              ➕ Plan a New Trip
+            </button>
+          </div>
+        </div>
+
+        <!-- Trip Preview Card -->
+        <div class="start-preview-card">
+          <div class="start-preview-header">
+            <div>
+              <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: var(--primary); letter-spacing: 0.5px;">Active Expedition</div>
+              <div id="startTripTitle" class="start-preview-title">Kochi–Alleppey Coastal Scooter Escape</div>
+              <div id="startTripDates" class="start-preview-meta">
+                <span>🗓 16–20 October 2026</span>
+                <span>🛵 165 km Total Ride</span>
+                <span>👥 2 Travellers (Vishnu &amp; Co-rider)</span>
+                <span>💰 ₹500 Advance Logged</span>
+              </div>
+            </div>
+            <button type="button" class="btn-sm btn-primary-sm" onclick="OntheGoApp.openActiveTrip()">
+              Open ➔
+            </button>
+          </div>
+
+          <div style="background: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 10px; font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <div style="font-weight: 700; color: var(--text-main);">📍 Upcoming Day 1 Arrival:</div>
+              <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">
+                2:00 PM Vande Bharat @ Ernakulam Junction ➔ 2:30 PM Scooter Pickup (₹2,800 total, ₹500 advance paid) ➔ Calvin's Inn Fort Kochi
+              </div>
+            </div>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=Ernakulam+Junction+Railway+Station" target="_blank" rel="noopener" class="btn-sm" style="flex-shrink: 0;">
+              🧭 Map
+            </a>
+          </div>
+        </div>
+
+        <!-- 4 Core Feature Cards -->
+        <div class="start-features-grid">
+          <div class="start-feature-box">
+            <div class="start-feature-icon">📋</div>
+            <div class="start-feature-heading">Day-by-Day Itinerary</div>
+            <div class="start-feature-text">
+              Real-time schedule with travel times, duration estimates, conflict alerts for Friday closures, and Day 5 train protection.
+            </div>
+          </div>
+
+          <div class="start-feature-box">
+            <div class="start-feature-icon">🗺️</div>
+            <div class="start-feature-heading">Route &amp; Verified Backups</div>
+            <div class="start-feature-text">
+              Direct Google Maps navigation links and 54+ verified Kerala coastal dining spots and attractions within 2–10 km detours.
+            </div>
+          </div>
+
+          <div class="start-feature-box">
+            <div class="start-feature-icon">💳</div>
+            <div class="start-feature-heading">Shared Budget &amp; Splits</div>
+            <div class="start-feature-text">
+              Equal 50/50, percentage, and custom splits calculated in integer paise with zero floating-point drift and instant debt settlement.
+            </div>
+          </div>
+
+          <div class="start-feature-box">
+            <div class="start-feature-icon">📶</div>
+            <div class="start-feature-heading">Offline-Ready Vault</div>
+            <div class="start-feature-text">
+              IndexedDB local storage and Service Worker caching ensure complete access to bookings, contacts, and routes without cellular signal.
+            </div>
+          </div>
+        </div>
+
+        <!-- Start Footer -->
+        <div class="start-footer">
+          <div class="start-footer-links">
+            <button type="button" onclick="OntheGoApp.navigateToTab('overview')">Trip Dashboard</button>
+            <button type="button" onclick="OntheGoApp.navigateToTab('itinerary')">Itinerary</button>
+            <button type="button" onclick="OntheGoApp.navigateToTab('explore')">Explore &amp; Map</button>
+            <button type="button" onclick="OntheGoApp.navigateToTab('bookings')">Bookings &amp; Emergency</button>
+            <button type="button" onclick="OntheGoApp.navigateToTab('budget')">Budget</button>
+            <button type="button" onclick="OntheGoApp.navigateToTab('settings')">Settings</button>
+          </div>
+          <div>OntheGO Travel Companion • Kerala Coastal Expedition (16–20 October 2026)</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: HOME DASHBOARD (TODAY / OVERVIEW) -->
     <!-- ========================================== -->
     <section id="view-today" class="tab-view active">
       
@@ -514,21 +657,21 @@
   <!-- PERSISTENT MOBILE BOTTOM NAVIGATION -->
   <!-- ========================================== -->
   <nav class="bottom-nav">
-    <div class="nav-item active" data-tab="today">
+    <div class="nav-item active" data-tab="overview">
       <div class="nav-icon">🏠</div>
-      <div class="nav-label">Today</div>
+      <div class="nav-label">Overview</div>
     </div>
     <div class="nav-item" data-tab="itinerary">
       <div class="nav-icon">📋</div>
       <div class="nav-label">Itinerary</div>
     </div>
-    <div class="nav-item" data-tab="map">
-      <div class="nav-icon">🗺️</div>
-      <div class="nav-label">Map</div>
+    <div class="nav-item" data-tab="explore">
+      <div class="nav-icon">🧭</div>
+      <div class="nav-label">Explore</div>
     </div>
-    <div class="nav-item" data-tab="expenses">
+    <div class="nav-item" data-tab="budget">
       <div class="nav-icon">💳</div>
-      <div class="nav-label">Expenses</div>
+      <div class="nav-label">Budget</div>
     </div>
     <div class="nav-item" data-tab="more">
       <div class="nav-icon">⋯</div>
@@ -541,6 +684,66 @@
     <span>🤖</span>
     <span>AI Assistant</span>
   </button>
+
+  <!-- ========================================== -->
+  <!-- MODAL: NEW TRIP CREATOR -->
+  <!-- ========================================== -->
+  <div id="newTripModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="newTripModalTitle">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 id="newTripModalTitle" class="modal-title">🌴 Plan a New Trip</h3>
+        <button type="button" class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
+      </div>
+
+      <form onsubmit="OntheGoApp.handleCreateNewTrip(event)">
+        <div class="form-group">
+          <label class="form-label">Trip Title / Destination</label>
+          <input type="text" id="newTripTitle" class="form-input" placeholder="e.g. Munnar–Vagamon Hill Roads or Kochi–Alleppey" required value="Kochi–Alleppey Coastal Scooter Escape">
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Start Date</label>
+            <input type="date" id="newTripStartDate" class="form-input" value="2026-10-16" required>
+          </div>
+          <div>
+            <label class="form-label">End Date</label>
+            <input type="date" id="newTripEndDate" class="form-input" value="2026-10-20" required>
+          </div>
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Traveller 1 (Owner)</label>
+            <input type="text" id="newTripTraveller1" class="form-input" value="Vishnu" required>
+          </div>
+          <div>
+            <label class="form-label">Traveller 2 (Partner)</label>
+            <input type="text" id="newTripTraveller2" class="form-input" value="Co-rider" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Primary Transport Mode</label>
+          <select id="newTripTransport" class="form-select">
+            <option value="scooter" selected>🛵 Scooter Rental (Coastal Highway)</option>
+            <option value="train">🚆 Train / Rail Travel</option>
+            <option value="car">🚗 Self-Drive Car / Cab</option>
+          </select>
+        </div>
+
+        <div style="background: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; font-size: 0.78rem; color: var(--text-muted);">
+          ℹ️ Creating a new trip initializes a fresh itinerary, split-expense ledger, and offline vault while preserving master templates.
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="OntheGoApp.closeModals()">Cancel</button>
+          <button type="submit" class="btn-primary">Create Trip ➔</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- ========================================== -->
   <!-- MODAL: ADD / EDIT ACTIVITY -->

@@ -44,6 +44,16 @@
       document.getElementById("test-results").appendChild(row);
     }
 
+    window.confirm = () => true;
+    window.alert = () => {};
+    window.prompt = (msg, def) => def || "";
+    if (!navigator.geolocation) {
+      navigator.geolocation = {};
+    }
+    navigator.geolocation.getCurrentPosition = (success) => {
+      success({ coords: { latitude: 9.9686, longitude: 76.2891 } });
+    };
+
     window.addEventListener("DOMContentLoaded", () => {
       try {
         // Reset state for deterministic test run
@@ -82,7 +92,8 @@
         assert("Redemption succeeds with valid token & PIN", goodAttempt.success === true);
         assert("Partner connected after redemption", OntheGoCollaboration.getCollaborationConfig().partnerConnected === true);
 
-        // Test revocation
+        // Test revocation (as owner)
+        OntheGoCollaboration.switchTraveller("traveller-1");
         OntheGoCollaboration.revokeInvite();
         const revokedConfig = OntheGoCollaboration.getCollaborationConfig();
         assert("Invitation status revoked", revokedConfig.inviteStatus === "revoked");

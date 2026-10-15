@@ -16,6 +16,7 @@ node_modules/
 test_output.txt
 test_prod_output.txt
 test_stage*_output.txt
+verify_*.txt
 *.log
 
 # Python cache & virtualenvs

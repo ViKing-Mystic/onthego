@@ -61,6 +61,9 @@ window.OntheGoApp = {
     // Render dashboard and weather
     this.renderDashboard();
     this.fetchWeather();
+
+    // Initialize SPA client-side router
+    this.initRouter();
   },
 
   async loadState() {
@@ -201,10 +204,10 @@ window.OntheGoApp = {
 
   bindEvents() {
     // Bottom nav handlers
-    document.querySelectorAll(".nav-item").forEach(item => {
+    document.querySelectorAll(".bottom-nav .nav-item").forEach(item => {
       item.addEventListener("click", () => {
         const tab = item.getAttribute("data-tab");
-        if (tab) this.switchTab(tab);
+        if (tab) this.navigateToTab(tab);
       });
     });
 
@@ -212,37 +215,194 @@ window.OntheGoApp = {
     document.querySelectorAll(".desktop-nav-tab-btn").forEach(item => {
       item.addEventListener("click", () => {
         const tab = item.getAttribute("data-tab");
-        if (tab) this.switchTab(tab);
+        if (tab && tab !== "more") this.navigateToTab(tab);
       });
+    });
+
+    // Close desktop more dropdown on outside click
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".desktop-more-dropdown-wrapper")) {
+        this.closeMoreDropdown();
+      }
     });
   },
 
-  switchTab(tabId) {
+  navigateToTab(tabId, subTab) {
+    const tripId = this.state?.activeTripId || "kochi-alleppey-2026";
+    let hash = `#/trips/${tripId}/${tabId}`;
+    if (tabId === "start") hash = "#/start";
+    if (tabId === "settings") hash = "#/settings";
+    
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+    this.switchTab(tabId, subTab);
+  },
+
+  initRouter() {
+    window.addEventListener("hashchange", () => this.handleRoute());
+    window.addEventListener("popstate", () => this.handleRoute());
+    this.handleRoute();
+  },
+
+  handleRoute() {
+    const hash = (window.location.hash || "").toLowerCase();
+    const path = (window.location.pathname || "").toLowerCase();
+    const full = (hash + " " + path).trim();
+
+    if (full.includes("bookings") || full.includes("wallet")) {
+      this.switchTab("bookings", "wallet");
+    } else if (full.includes("itinerary")) {
+      this.switchTab("itinerary");
+    } else if (full.includes("explore") || full.includes("map")) {
+      this.switchTab("explore");
+    } else if (full.includes("budget") || full.includes("expenses")) {
+      this.switchTab("budget");
+    } else if (full.includes("shared") || full.includes("collaboration")) {
+      this.switchTab("shared", "collaboration");
+    } else if (full.includes("memories") || full.includes("journal") || full.includes("reports")) {
+      this.switchTab("memories", "journal");
+    } else if (full.includes("assistant")) {
+      this.switchTab("assistant", "assistant");
+    } else if (full.includes("settings")) {
+      this.switchTab("settings", "settings");
+    } else if (full.includes("start")) {
+      this.switchTab("start");
+    } else if (full.includes("trips/") || full.includes("overview") || full.includes("today")) {
+      this.switchTab("overview");
+    } else {
+      // Root / landing route: start page for direct landing
+      if (!hash || hash === "#/" || hash === "#") {
+        this.switchTab("start");
+      } else {
+        this.switchTab("overview");
+      }
+    }
+  },
+
+  openActiveTrip() {
+    this.navigateToTab("overview");
+    this.showToast("Welcome back to your Kochi–Alleppey Coastal Expedition! 🌴");
+  },
+
+  openNewTripModal() {
+    const m = document.getElementById("newTripModal");
+    if (m) m.classList.add("open");
+  },
+
+  handleCreateNewTrip(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const title = document.getElementById("newTripTitle")?.value || "Kochi–Alleppey Coastal Scooter Escape";
+    const start = document.getElementById("newTripStartDate")?.value || "2026-10-16";
+    const end = document.getElementById("newTripEndDate")?.value || "2026-10-20";
+    const t1 = document.getElementById("newTripTraveller1")?.value || "Vishnu";
+    const t2 = document.getElementById("newTripTraveller2")?.value || "Co-rider";
+
+    if (this.state) {
+      if (!this.state.trip) this.state.trip = {};
+      this.state.trip.title = title;
+      this.state.trip.startDate = start;
+      this.state.trip.endDate = end;
+      if (Array.isArray(this.state.travellers) && this.state.travellers.length >= 2) {
+        this.state.travellers[0].name = t1;
+        this.state.travellers[1].name = t2;
+      }
+      this.saveState();
+    }
+
+    this.closeModals();
+    this.navigateToTab("overview");
+    this.showToast(`Trip "${title}" created and ready! 🚀`);
+    this.renderDashboard();
+  },
+
+  toggleMoreDropdown(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const menu = document.getElementById("desktopMoreMenu");
+    if (menu) {
+      const isShown = menu.style.display === "block";
+      menu.style.display = isShown ? "none" : "block";
+    }
+  },
+
+  closeMoreDropdown() {
+    const menu = document.getElementById("desktopMoreMenu");
+    if (menu) menu.style.display = "none";
+  },
+
+  switchTab(tabId, subTab) {
+    // Normalise semantic aliases
+    const targetMap = {
+      start: { view: "start", nav: "start" },
+      today: { view: "today", nav: "overview" },
+      overview: { view: "today", nav: "overview" },
+      itinerary: { view: "itinerary", nav: "itinerary" },
+      explore: { view: "map", nav: "explore" },
+      map: { view: "map", nav: "explore" },
+      budget: { view: "expenses", nav: "budget" },
+      expenses: { view: "expenses", nav: "budget" },
+      bookings: { view: "more", nav: "more", sub: "wallet" },
+      wallet: { view: "more", nav: "more", sub: "wallet" },
+      shared: { view: "more", nav: "more", sub: "collaboration" },
+      collaboration: { view: "more", nav: "more", sub: "collaboration" },
+      memories: { view: "more", nav: "more", sub: "journal" },
+      journal: { view: "more", nav: "more", sub: "journal" },
+      reports: { view: "more", nav: "more", sub: "reports" },
+      assistant: { view: "more", nav: "more", sub: "assistant" },
+      settings: { view: "more", nav: "more", sub: "settings" },
+      backups: { view: "more", nav: "more", sub: "backups" },
+      restaurants: { view: "more", nav: "more", sub: "restaurants" },
+      optional: { view: "more", nav: "more", sub: "optional" },
+      checklist: { view: "more", nav: "more", sub: "checklist" },
+      conflicts: { view: "more", nav: "more", sub: "conflicts" },
+      feasibility: { view: "more", nav: "more", sub: "feasibility" },
+      reminders: { view: "more", nav: "more", sub: "reminders" },
+      "sync-queue": { view: "more", nav: "more", sub: "sync-queue" },
+      more: { view: "more", nav: "more" }
+    };
+
+    const target = targetMap[tabId] || { view: tabId, nav: tabId };
     this.activeTab = tabId;
 
     // Toggle active view
     document.querySelectorAll(".tab-view").forEach(v => {
-      v.classList.toggle("active", v.id === `view-${tabId}`);
+      v.classList.toggle("active", v.id === `view-${target.view}`);
     });
 
-    // Update bottom nav active state
-    document.querySelectorAll(".nav-item").forEach(item => {
-      item.classList.toggle("active", item.getAttribute("data-tab") === tabId);
+    // Update bottom nav active state (support both semantic and legacy data-tab values)
+    document.querySelectorAll(".bottom-nav .nav-item").forEach(item => {
+      const d = item.getAttribute("data-tab");
+      const isMatch = (d === target.nav) ||
+                      (target.nav === "overview" && d === "today") ||
+                      (target.nav === "explore" && d === "map") ||
+                      (target.nav === "budget" && d === "expenses");
+      item.classList.toggle("active", isMatch);
     });
 
     // Update desktop nav active state
     document.querySelectorAll(".desktop-nav-tab-btn").forEach(item => {
-      item.classList.toggle("active", item.getAttribute("data-tab") === tabId);
+      const d = item.getAttribute("data-tab");
+      const isMatch = (d === target.nav) ||
+                      (target.nav === "overview" && d === "today") ||
+                      (target.nav === "explore" && d === "map") ||
+                      (target.nav === "budget" && d === "expenses");
+      item.classList.toggle("active", isMatch);
     });
 
-    // If switching to map, trigger map resize
-    if (tabId === "map") {
+    // If target has subtab or subTab param provided, switch more subtab
+    const activeSub = subTab || target.sub;
+    if (target.view === "more" && activeSub) {
+      this.switchMoreSubTab(activeSub);
+    }
+
+    // Trigger tab-specific initialisations
+    if (target.view === "map") {
       setTimeout(() => OntheGoMap.init(), 100);
-    } else if (tabId === "today") {
+    } else if (target.view === "today") {
       this.renderDashboard();
-    } else if (tabId === "itinerary") {
+    } else if (target.view === "itinerary") {
       OntheGoItinerary.renderCurrentDay();
-    } else if (tabId === "expenses") {
+    } else if (target.view === "expenses") {
       OntheGoExpenses.init();
     }
 

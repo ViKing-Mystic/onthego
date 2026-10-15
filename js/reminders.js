@@ -105,6 +105,7 @@ window.OntheGoReminders = {
             title: act.title,
             scheduledTime: timeParsed.toISOString(),
             triggerMinutesBefore: leadMins,
+            triggerTime: new Date(timeParsed.getTime() - leadMins * 60000).toISOString(),
             category,
             status: "scheduled",
             isHardConstraint
@@ -290,9 +291,12 @@ window.OntheGoReminders = {
     const rem = (OntheGoApp.state.reminders || []).find(r => r.id === reminderId);
     if (!rem) return;
 
-    const snoozeTarget = new Date(Date.now() + minutes * 60 * 1000);
+    const baseTime = rem.triggerTime ? new Date(rem.triggerTime).getTime() : Date.now();
+    const snoozeTarget = new Date(Math.max(Date.now(), baseTime) + minutes * 60 * 1000);
     rem.status = "snoozed";
     rem.snoozedUntil = snoozeTarget.toISOString();
+    rem.snoozed = true;
+    rem.triggerTime = snoozeTarget.toISOString();
     OntheGoApp.saveState();
 
     OntheGoApp.showToast(`Snoozed "${rem.title}" for ${minutes} mins. ⏰`);

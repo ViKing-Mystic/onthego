@@ -10,6 +10,16 @@ window.OntheGoJournal = {
     this.ensureJournalState();
   },
 
+  addMemory(memoryData) {
+    if (!memoryData.title && memoryData.activityTitle) {
+      memoryData.title = memoryData.activityTitle;
+    }
+    if (!memoryData.favouriteMoment && memoryData.moment) {
+      memoryData.favouriteMoment = memoryData.moment;
+    }
+    return this.saveMemory(memoryData);
+  },
+
   ensureJournalState() {
     if (!window.OntheGoApp || !OntheGoApp.state) return;
     if (!Array.isArray(OntheGoApp.state.memories)) {

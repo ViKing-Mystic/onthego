@@ -239,6 +239,7 @@ window.OntheGoCollaboration = {
       OntheGoApp.state.collaboration = {
         activeTravellerId: this.activeTravellerId,
         isTripPrivate: true,
+        isPrivate: true,
         inviteToken: this.generateSecureToken(),
         inviteExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         inviteStatus: "idle",
@@ -246,6 +247,9 @@ window.OntheGoCollaboration = {
         partnerConnected: true
       };
       OntheGoApp.saveState();
+    }
+    if (OntheGoApp.state.collaboration && OntheGoApp.state.collaboration.isPrivate === undefined) {
+      OntheGoApp.state.collaboration.isPrivate = OntheGoApp.state.collaboration.isTripPrivate ?? true;
     }
     return OntheGoApp.state.collaboration;
   },
@@ -326,6 +330,10 @@ window.OntheGoCollaboration = {
    * Validates and redeems an invitation token and access PIN.
    */
   redeemInvite(token, enteredPin) {
+    if (token && typeof token === "string" && token.includes("invite=")) {
+      const match = token.match(/invite=([^&]+)/);
+      if (match) token = match[1];
+    }
     const config = this.getCollaborationConfig();
 
     if (config.inviteStatus === "revoked") {
@@ -571,6 +579,9 @@ window.OntheGoCollaboration = {
       };
       OntheGoApp.saveState();
     }
+    if (OntheGoApp.state.locationSharing) {
+      OntheGoApp.state.locationSharing.isActive = !!OntheGoApp.state.locationSharing.enabled;
+    }
     return OntheGoApp.state.locationSharing;
   },
 
@@ -602,6 +613,7 @@ window.OntheGoCollaboration = {
         const loc = this.getLocationSharing();
         const cur = this.getCurrentTraveller();
         loc.enabled = true;
+        loc.isActive = true;
         loc.activeTravellerId = this.activeTravellerId;
         loc.activatedAt = new Date().toISOString();
         loc.expiresAt = new Date(Date.now() + durationMins * 60 * 1000).toISOString();
@@ -634,6 +646,7 @@ window.OntheGoCollaboration = {
   stopLocationSharing(isExpired = false) {
     const loc = this.getLocationSharing();
     loc.enabled = false;
+    loc.isActive = false;
     loc.currentLat = null;
     loc.currentLng = null;
     loc.expiresAt = null;
@@ -654,6 +667,10 @@ window.OntheGoCollaboration = {
   /**
    * Adds a manual check-in point without continuous GPS tracking.
    */
+  recordCheckIn(locationName, note) {
+    return this.manualCheckIn(locationName, note);
+  },
+
   manualCheckIn(locationName, note) {
     if (!locationName || !locationName.trim()) {
       locationName = prompt("Enter your current location name (e.g., Kashi Art Cafe, Fort Kochi):");
@@ -668,7 +685,7 @@ window.OntheGoCollaboration = {
       travellerName: cur.name,
       timestamp: new Date().toISOString(),
       locationName: locationName.trim(),
-      note: note ? note.trim() : ""
+      note: typeof note === "string" ? note.trim() : (note ? String(note) : "")
     };
 
     loc.checkIns.unshift(newCheckIn);

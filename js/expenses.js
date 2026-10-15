@@ -65,10 +65,11 @@ window.OntheGoExpenses = {
    * @param {number} paise 
    * @returns {string}
    */
-  formatPaise(paise) {
+  formatPaise(paise, forceDecimals = false) {
     const r = Math.abs(paise || 0) / 100;
+    const hasDecimals = (paise % 100 !== 0) || forceDecimals;
     const formatted = r.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
+      minimumFractionDigits: hasDecimals ? 2 : 0,
       maximumFractionDigits: 2
     });
     return (paise < 0 ? "-₹" : "₹") + formatted;
@@ -268,7 +269,9 @@ window.OntheGoExpenses = {
       coRiderPaidTotalPaise,
       totalTripSharedPaise,
       totalTripPersonalPaise,
-      totalOverallPaise: vishnuPaidTotalPaise + coRiderPaidTotalPaise
+      totalOverallPaise: vishnuPaidTotalPaise + coRiderPaidTotalPaise,
+      netOwedPaise: Math.abs(netBalancePaise),
+      settlementAdvice: suggestionText
     };
   },
 
@@ -707,15 +710,18 @@ window.OntheGoExpenses = {
    * 1-Click Settlement / Partial Repayment Helper.
    */
   recordSettlementRepayment(suggestedPaise, debtorName) {
+    if (!suggestedPaise || !debtorName) {
+      const curSettlement = this.calculateNetSettlement();
+      suggestedPaise = suggestedPaise || curSettlement.settlementAmountPaise;
+      debtorName = debtorName || curSettlement.debtorName;
+    }
     const debtorId = debtorName === "Vishnu" ? "traveller-1" : "traveller-2";
     const recipientId = debtorId === "traveller-1" ? "traveller-2" : "traveller-1";
     const recipientName = debtorId === "traveller-1" ? "Co-rider" : "Vishnu";
 
     const defaultAmount = this.toRupees(suggestedPaise);
     const amountStr = prompt(`Record settlement payment from ${debtorName} to ${recipientName}:\nEnter amount in ₹ (INR):`, defaultAmount);
-    if (!amountStr) return;
-
-    const amount = parseFloat(amountStr);
+    const amount = amountStr ? parseFloat(amountStr) : defaultAmount;
     if (isNaN(amount) || amount <= 0) {
       alert("Invalid settlement amount.");
       return;

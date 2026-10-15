@@ -11,6 +11,10 @@ window.OntheGoReports = {
     this.renderReportView();
   },
 
+  generateReport() {
+    return this.generateReportData();
+  },
+
   /**
    * Generates the comprehensive report data model.
    * @returns {Object}
@@ -160,13 +164,17 @@ window.OntheGoReports = {
       generatedAt: new Date().toISOString(),
       itineraryAudit: {
         totalPlannedStops,
+        totalPlannedActivities: totalPlannedStops,
         completedStops,
+        completedActivities: completedStops,
         skippedStops,
         substitutedStops,
         completionRatePct: totalPlannedStops > 0 ? Math.round((completedStops / totalPlannedStops) * 100) : 0,
         dayBreakdowns
       },
       financialAudit: {
+        totalExpenditurePaise: totalActualPaise,
+        totalExpenditureRupees: totalActualPaise / 100,
         plannedBudgetPaise: totalPlannedBudgetPaise,
         plannedBudgetINR: totalPlannedBudgetPaise / 100,
         actualSpentPaise: totalActualPaise,

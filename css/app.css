@@ -5,29 +5,53 @@
    ========================================================================== */
 
 :root {
-  /* Coastal Kerala Color Palette */
-  --coastal-ivory: #faf7f2;
-  --coastal-sand: #f3ede2;
-  --coastal-sand-dim: #e9e0d1;
-  --coastal-turquoise: #0d828a;
-  --coastal-turquoise-light: #129ea7;
-  --coastal-turquoise-hover: #0a696f;
-  --seaglass-green: #278271;
-  --seaglass-light: #329c87;
-  --seaglass-pale: #edf7f4;
-  --kerala-terracotta: #c2593f;
-  --kerala-terracotta-hover: #ad4b33;
-  --kerala-terracotta-pale: #fcf1ed;
+  /* Coastal Kerala Color Palette (Prompt Section 6 Specification) */
+  --primary: #3F7968;                  /* Muted sea-glass green */
+  --primary-hover: #326254;
+  --primary-pale: #edf5f2;
+  --secondary: #4D9A98;                /* Coastal teal */
+  --secondary-hover: #3d7d7b;
+  --secondary-pale: #eef7f7;
+  --bg-main: #FAF8F2;                  /* Warm ivory */
+  --bg-card: #FFFFFF;                  /* Clean off-white */
+  --bg-card-hover: #f5f2eb;
+  --bg-card-subtle: #f8f5ee;
+  --bg-card-glass: rgba(250, 248, 242, 0.95);
+  --bg-input: #f4eee2;
+  --accent: #C7795A;                   /* Muted terracotta */
+  --accent-hover: #b06548;
+  --accent-pale: #fcf2ed;
+  --neutral-sand: #E9DFC9;             /* Sand beige */
+  --neutral-sand-dim: #dfd4bc;
+  --text-main: #29332F;                /* Deep charcoal */
+  --text-muted: #6E7973;               /* Muted grey-green */
+  --text-dim: #8b9791;
+  --text-contrast: #182320;
+  --border-color: #E7E5DE;             /* Subtle warm grey */
+  --border-highlight: #d9d5cb;
+
+  /* Semantic Aliases for backward-compatibility across all modules */
+  --coastal-ivory: var(--bg-main);
+  --coastal-sand: var(--neutral-sand);
+  --coastal-sand-dim: var(--neutral-sand-dim);
+  --coastal-turquoise: var(--secondary);
+  --coastal-turquoise-light: #5ba8a6;
+  --coastal-turquoise-hover: var(--secondary-hover);
+  --seaglass-green: var(--primary);
+  --seaglass-light: #4c8e7c;
+  --seaglass-pale: var(--primary-pale);
+  --kerala-terracotta: var(--accent);
+  --kerala-terracotta-hover: var(--accent-hover);
+  --kerala-terracotta-pale: var(--accent-pale);
   --sunset-amber: #c97a14;
 
-  /* Semantic Aliases */
   --primary-navy: #1b2826;
-  --ocean-teal: var(--coastal-turquoise);
-  --ocean-teal-light: var(--coastal-turquoise-light);
-  --seafoam-green: var(--seaglass-green);
-  --seafoam-light: var(--seaglass-light);
-  --sunset-coral: var(--kerala-terracotta);
-  --sunset-coral-hover: var(--kerala-terracotta-hover);
+  --ocean-teal: var(--secondary);
+  --ocean-teal-light: #5ba8a6;
+  --seafoam-green: var(--primary);
+  --seafoam-light: #4c8e7c;
+  --sunset-coral: var(--accent);
+  --sunset-coral-hover: var(--accent-hover);
 
   --danger: #dc2626;
   --danger-light: #fef2f2;
@@ -39,24 +63,9 @@
   --info: #0369a1;
   --info-light: #f0f9ff;
 
-  /* Theme Defaults (Light Coastal Kerala - Daylight Outdoor Optimized) */
-  --bg-main: #faf7f2;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f5efe6;
-  --bg-card-subtle: #f8f3eb;
-  --bg-card-glass: rgba(250, 247, 242, 0.94);
-  --bg-input: #f3ede2;
-  --border-color: #e5ded2;
-  --border-highlight: #d6ccbe;
-
-  --text-main: #182320;
-  --text-muted: #495852;
-  --text-dim: #6d7d77;
-  --text-contrast: #0f1614;
-
-  --shadow-sm: 0 1px 3px rgba(35, 45, 40, 0.05);
-  --shadow-md: 0 4px 12px rgba(35, 45, 40, 0.07);
-  --shadow-lg: 0 10px 24px rgba(35, 45, 40, 0.10);
+  --shadow-sm: 0 1px 3px rgba(41, 51, 47, 0.05);
+  --shadow-md: 0 4px 12px rgba(41, 51, 47, 0.07);
+  --shadow-lg: 0 10px 24px rgba(41, 51, 47, 0.10);
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -1893,4 +1902,279 @@ button, input, select, textarea {
     min-height: 48px;
   }
 }
+
+/* ==========================================================================
+   START PAGE & PRODUCTION NAVIGATION STYLES
+   ========================================================================== */
+
+/* Start Page Landing Container */
+.start-page-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 12px 32px;
+}
+
+.start-hero {
+  text-align: center;
+  padding: 28px 16px 20px;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-subtle) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.start-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--primary-pale);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  border: 1px solid rgba(63, 121, 104, 0.25);
+}
+
+.start-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.start-description {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  max-width: 520px;
+  margin: 0 auto 20px;
+  line-height: 1.5;
+}
+
+.start-artwork-container {
+  margin: 12px auto 20px;
+  max-width: 380px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-action-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.start-primary-btn {
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(63, 121, 104, 0.3);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-primary-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.start-secondary-btn {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.start-secondary-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-highlight);
+}
+
+/* Trip Preview Card on Start Page */
+.start-preview-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.start-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.start-preview-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.start-preview-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* Feature Summary Grid */
+.start-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.start-feature-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.start-feature-icon {
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+}
+
+.start-feature-heading {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.start-feature-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Simple Footer */
+.start-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 20px 0 10px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.start-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.start-footer-links a,
+.start-footer-links button {
+  color: var(--secondary);
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* Desktop Dropdown Menu */
+.desktop-more-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  padding: 6px 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item {
+  padding: 9px 14px;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-card-hover);
+  color: var(--primary);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
+
+/* Unified Hub / View Headers */
+.view-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.view-hero-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+.view-hero-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 

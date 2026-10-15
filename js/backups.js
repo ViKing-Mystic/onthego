@@ -338,10 +338,13 @@ window.OntheGoBackups = {
     let totalScore = Math.round(proximityScore + sectorScore + reviewScore + availabilityScore + categoryScore + affordabilityScore);
 
     // Factor 7: Low-Priority / Needs Verification Deduction
+    let priorityScore = 0;
     if (alt.status === "low_priority") {
+      priorityScore = -15;
       totalScore = Math.max(5, totalScore - 15);
     }
     if (alt.status === "needs_verification") {
+      priorityScore = -10;
       totalScore = Math.max(5, totalScore - 10);
     }
 
@@ -359,7 +362,8 @@ window.OntheGoBackups = {
         reviewScore,
         availabilityScore,
         categoryScore,
-        affordabilityScore
+        affordabilityScore,
+        priorityScore
       }
     };
   },
