@@ -198,7 +198,11 @@ window.OntheGoApp = {
   setupServiceWorker() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js")
-        .then(() => console.log("OntheGO PWA Service Worker Registered"))
+        .then(reg => {
+          console.log("OntheGO PWA Service Worker Registered");
+          // Proactively check for new SW updates on production load
+          reg.update().catch(() => {});
+        })
         .catch(err => console.log("Service Worker Registration Failed:", err));
     }
   },
