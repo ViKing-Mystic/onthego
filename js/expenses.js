@@ -155,6 +155,14 @@ window.OntheGoExpenses = {
    *
    * @returns {Object} Comprehensive settlement report
    */
+  calculateSplits() {
+    return this.calculateNetSettlement();
+  },
+
+  calculateSettlement() {
+    return this.calculateNetSettlement();
+  },
+
   calculateNetSettlement() {
     const expenses = this.getExpenses();
 
@@ -418,6 +426,7 @@ window.OntheGoExpenses = {
                 <span style="font-weight: 700; font-size: 0.92rem; color: var(--text-main);">${exp.description}</span>
                 ${splitBadge}
                 ${exp.isPrepaid ? `<span class="prepaid-badge">Prepaid Deposit</span>` : ''}
+                ${exp.pendingSync ? `<span class="split-tag tag-custom" style="background: #fff7ed; color: #c2410c; border: 1px solid #fdba74;">🕒 Pending Sync</span>` : ''}
               </div>
 
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
@@ -519,7 +528,10 @@ window.OntheGoExpenses = {
   },
 
   saveExpense(event) {
-    event.preventDefault();
+    if (event && event.preventDefault) event.preventDefault();
+    if (window.OntheGoReliability && !OntheGoReliability.guardSubmission("expense_form_submit")) {
+      return;
+    }
     const amountNum = parseFloat(document.getElementById("expAmount").value) || 0;
     const currency = document.getElementById("expCurrency").value || "INR";
     const fxRate = currency !== "INR" ? (parseFloat(document.getElementById("expFxRate").value) || 1.0) : 1.0;
@@ -536,6 +548,10 @@ window.OntheGoExpenses = {
       alert("Please enter a valid amount and description.");
       return;
     }
+
+    const isOnline = (window.OntheGoReliability && OntheGoReliability.isOnline)
+      ? OntheGoReliability.isOnline()
+      : navigator.onLine;
 
     const amountPaise = this.toPaise(amountNum);
     const amountInInrPaise = Math.round(amountPaise * fxRate);
@@ -585,6 +601,17 @@ window.OntheGoExpenses = {
         exp.receiptNote = receiptNote;
         exp.isPrepaid = isPrepaid;
         exp.lastModifiedBy = OntheGoCollaboration ? OntheGoCollaboration.activeTravellerId : paidBy;
+
+        if (!isOnline && window.OntheGoSyncEngine) {
+          exp.pendingSync = true;
+          OntheGoSyncEngine.enqueueOperation({
+            entityType: "expense",
+            action: "update",
+            recordId: exp.id,
+            payload: exp,
+            idempotencyKey: exp.idempotencyKey || `exp_edit_${exp.id}_${Date.now()}`
+          });
+        }
       }
       if (window.OntheGoCollaboration) {
         OntheGoCollaboration.recordChange({
@@ -596,8 +623,14 @@ window.OntheGoExpenses = {
       }
       OntheGoApp.showToast("Expense updated! ✓");
     } else {
+      const idempotencyKey = window.OntheGoReliability
+        ? OntheGoReliability.generateIdempotencyKey("exp", description)
+        : `exp_${Date.now()}`;
+
       const newExp = {
         id: "exp-" + Date.now(),
+        idempotencyKey,
+        pendingSync: !isOnline,
         amount: amountNum,
         amountPaise,
         currency,
@@ -618,6 +651,17 @@ window.OntheGoExpenses = {
         lastModifiedBy: OntheGoCollaboration ? OntheGoCollaboration.activeTravellerId : paidBy
       };
       OntheGoApp.state.expenses.push(newExp);
+
+      if (!isOnline && window.OntheGoSyncEngine) {
+        OntheGoSyncEngine.enqueueOperation({
+          entityType: "expense",
+          action: "create",
+          recordId: newExp.id,
+          payload: newExp,
+          idempotencyKey
+        });
+      }
+
       if (window.OntheGoCollaboration) {
         OntheGoCollaboration.recordChange({
           action: "created",
@@ -626,7 +670,7 @@ window.OntheGoExpenses = {
           description: `Logged ₹${amountNum} for "${description}" (${splitMethod} split)`
         });
       }
-      OntheGoApp.showToast("Expense recorded! ✓");
+      OntheGoApp.showToast(isOnline ? "Expense recorded! ✓" : "Offline: Expense saved locally & queued for sync 🕒");
     }
 
     OntheGoApp.saveState();

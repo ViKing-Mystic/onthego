@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Temporary browser profiles and testing directories
+.tmp_edge/
+.tmp_chrome/
+.tmp_browser/
+
+# Test output and verification artifacts
+test_output.txt
+test_prod_output.txt
+test_stage*_output.txt
+*.log
+
+# Python cache & virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

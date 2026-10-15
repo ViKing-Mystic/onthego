@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#faf7f2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -44,6 +44,10 @@
       <button type="button" id="activeTravellerToggleBtn" class="traveller-toggle-pill" onclick="OntheGoCollaboration.switchTraveller(OntheGoCollaboration.activeTravellerId === 'traveller-1' ? 'traveller-2' : 'traveller-1')" title="Toggle Active Persona (Vishnu / Co-rider)">🛵 <span class="traveller-pill-name">Vishnu</span></button>
       <span id="headerSyncStatusPill" class="header-status-pill status-online" title="Multi-device sync status">🟢 Synced</span>
       <span id="headerStatusBadge" class="header-status-pill status-online">🟢 Online</span>
+      <button type="button" class="icon-btn notif-bell-btn" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('reminders');" title="Reminders & Notifications" style="position: relative;">
+        🔔
+        <span id="headerNotifBadge" class="notif-badge-pill" style="display: none;">0</span>
+      </button>
       <button type="button" class="icon-btn" onclick="OntheGoTimeHelper.triggerRunningLate()" title="Running Late Assistant">
         🏃
       </button>
@@ -96,6 +100,10 @@
         <button class="btn-sm" onclick="OntheGoApp.switchTab('itinerary')">View Full Timeline ➔</button>
       </div>
       <div id="dashDaySelector" class="day-selector-scroll"></div>
+
+      <!-- Stage 3 Actionable Notifications & Coastal Weather Widget -->
+      <div id="dashActionableNotifsContainer"></div>
+      <div id="dashWeatherWidget"></div>
 
       <!-- Critical Warnings / Deadline Reminders Banner -->
       <div id="dashWarningContainer"></div>
@@ -211,6 +219,7 @@
         <button class="rec-filter-btn" data-cat="Beach" onclick="OntheGoMap.setCategoryFilter('Beach')">🏖️ Beaches</button>
         <button class="rec-filter-btn" data-cat="Stay" onclick="OntheGoMap.setCategoryFilter('Stay')">🏨 Stays</button>
         <button class="rec-filter-btn" data-cat="Activity" onclick="OntheGoMap.setCategoryFilter('Activity')">🏄 Activities</button>
+        <button type="button" id="mapToggleBackupsBtn" class="rec-filter-btn" onclick="OntheGoMap.toggleBackupsOnMap()">🔀 Show Nearby Backups</button>
       </div>
 
       <!-- Leaflet Map Container -->
@@ -275,13 +284,20 @@
       
       <!-- More Sub-Navigation Carousel -->
       <div class="day-selector-scroll" style="margin-bottom: 14px;">
-        <button class="rec-filter-btn more-nav-pill active" data-sub="wallet" onclick="OntheGoApp.switchMoreSubTab('wallet')">💼 Contacts & Wallet</button>
+        <button class="rec-filter-btn more-nav-pill active" data-sub="wallet" onclick="OntheGoApp.switchMoreSubTab('wallet')">💼 Bookings Vault & Contacts</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="sync-queue" onclick="OntheGoApp.switchMoreSubTab('sync-queue')">🔄 Offline Sync & Queue</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="journal" onclick="OntheGoApp.switchMoreSubTab('journal')">📖 Travel Journal</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="reports" onclick="OntheGoApp.switchMoreSubTab('reports')">📊 Trip Reports</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="budget" onclick="OntheGoApp.switchMoreSubTab('budget')">📈 Budget Intelligence</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="assistant" onclick="OntheGoApp.switchMoreSubTab('assistant')">🤖 AI Assistant</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="collaboration" onclick="OntheGoApp.switchMoreSubTab('collaboration')">🤝 Collaboration & Prefs</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="backups" onclick="OntheGoApp.switchMoreSubTab('backups')">🔀 Backup Planner</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="restaurants" onclick="OntheGoApp.switchMoreSubTab('restaurants')">🍽️ Restaurants Directory</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="optional" onclick="OntheGoApp.renderOptionalStops(); OntheGoApp.switchMoreSubTab('optional');">🏖️ Optional Stops</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="checklist" onclick="OntheGoApp.switchMoreSubTab('checklist')">✅ On-the-Go Checklist</button>
-        <button class="rec-filter-btn more-nav-pill" data-sub="conflicts" onclick="OntheGoApp.switchMoreSubTab('conflicts')">⏱️ Schedule Conflicts</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="feasibility" onclick="OntheGoApp.switchMoreSubTab('feasibility')">⏱️ Feasibility & Delays</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="reminders" onclick="OntheGoApp.switchMoreSubTab('reminders')">🔔 Reminders & Alerts</button>
+        <button class="rec-filter-btn more-nav-pill" data-sub="conflicts" onclick="OntheGoApp.switchMoreSubTab('conflicts')">⚠️ Static Conflicts</button>
         <button class="rec-filter-btn more-nav-pill" data-sub="settings" onclick="OntheGoApp.switchMoreSubTab('settings')">⚙️ Settings & Backup</button>
       </div>
 
@@ -387,13 +403,73 @@
         <div id="conflictAssistantContainer"></div>
       </div>
 
-      <!-- SUB-VIEW G: SETTINGS & BACKUP -->
+      <!-- SUB-VIEW G: SCHEDULE FEASIBILITY & DELAY RECOVERY (STAGE 3) -->
+      <div id="more-sub-feasibility" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">⏱️ Schedule Feasibility & Delay Engine</h2>
+          <button type="button" class="btn-sm btn-primary-sm" onclick="OntheGoAiAdjustments.generateAiAdjustmentProposal(OntheGoItinerary.currentDayId, 30)">
+            🤖 AI Schedule Recovery
+          </button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          Forward-simulates delays, preserves confirmed bookings and Day 5 train buffer, and generates actionable adjustments requiring explicit approval.
+        </p>
+        <div id="feasibilityHubContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW H: REMINDERS & NOTIFICATIONS (STAGE 3) -->
+      <div id="more-sub-reminders" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">🔔 Departure & Activity Reminders</h2>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          Time-zone aware departure, check-in, and booking alerts with snoozing and quiet hours.
+        </p>
+        <div id="remindersListContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW J: OFFLINE SYNC QUEUE & CONFLICT RESOLUTION (STAGE 4) -->
+      <div id="more-sub-sync-queue" class="more-sub-view" style="display: none;">
+        <div id="syncQueueContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW K: TRAVEL JOURNAL & MEMORIES (STAGE 5) -->
+      <div id="more-sub-journal" class="more-sub-view" style="display: none;">
+        <div class="section-header">
+          <h2 class="section-title">📖 Travel Journal & Field Memories</h2>
+          <button type="button" class="btn-primary-sm" onclick="OntheGoJournal.openAddMemoryModal()">✍️ Add Memory</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          Chronological travel moments, ratings, field notes, and private traveller logs with photo metadata preservation.
+        </p>
+        <div id="journalContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW L: COMPREHENSIVE TRIP REPORTS (STAGE 5) -->
+      <div id="more-sub-reports" class="more-sub-view" style="display: none;">
+        <div id="reportsContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW M: BUDGET INTELLIGENCE & FORECASTING (STAGE 5) -->
+      <div id="more-sub-budget" class="more-sub-view" style="display: none;">
+        <div id="budgetIntelligenceContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW N: AI TRAVEL ASSISTANT (STAGE 5) -->
+      <div id="more-sub-assistant" class="more-sub-view" style="display: none;">
+        <div id="assistantChatContainer"></div>
+      </div>
+
+      <!-- SUB-VIEW I: SETTINGS & BACKUP -->
       <div id="more-sub-settings" class="more-sub-view" style="display: none;">
         <div class="section-header">
           <h2 class="section-title">⚙️ Trip Settings & Offline Backup</h2>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- AI Assistant & Gemini API Configuration -->
+          <div id="aiSettingsContainer"></div>
+
           <div class="stop-card">
             <h4 style="margin-bottom: 4px;">💾 Data Export & Offline Backup</h4>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
@@ -460,10 +536,16 @@
     </div>
   </nav>
 
+  <!-- Floating AI Assistant Trigger -->
+  <button type="button" class="floating-assistant-btn" onclick="OntheGoApp.switchTab('more'); OntheGoApp.switchMoreSubTab('assistant');" title="Open AI Travel Assistant">
+    <span>🤖</span>
+    <span>AI Assistant</span>
+  </button>
+
   <!-- ========================================== -->
   <!-- MODAL: ADD / EDIT ACTIVITY -->
   <!-- ========================================== -->
-  <div id="addActivityModal" class="modal-overlay">
+  <div id="addActivityModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="addActModalTitle">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header">
@@ -526,7 +608,7 @@
   <!-- ========================================== -->
   <!-- MODAL: ADD / EDIT EXPENSE (STAGE 2) -->
   <!-- ========================================== -->
-  <div id="addExpenseModal" class="modal-overlay">
+  <div id="addExpenseModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="expModalTitle">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header">
@@ -644,11 +726,11 @@
   <!-- ========================================== -->
   <!-- MODAL: EDIT SHARED PREFERENCES (STAGE 2) -->
   <!-- ========================================== -->
-  <div id="editPreferencesModal" class="modal-overlay">
+  <div id="editPreferencesModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="editPrefModalTitle">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header">
-        <h3 class="modal-title">🌴 Edit Shared Travel Preferences</h3>
+        <h3 id="editPrefModalTitle" class="modal-title">🌴 Edit Shared Travel Preferences</h3>
         <button class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
       </div>
 
@@ -718,14 +800,124 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- MODAL: ADD / EDIT TRAVEL MEMORY (STAGE 5) -->
+  <!-- ========================================== -->
+  <div id="memoryModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="memModalTitle">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 id="memModalTitle" class="modal-title">✍️ Record Travel Memory</h3>
+        <button class="icon-btn" onclick="OntheGoApp.closeModals()">✕</button>
+      </div>
+
+      <form onsubmit="OntheGoJournal.handleMemoryFormSubmit(event)">
+        <input type="hidden" id="memId" value="">
+
+        <div class="form-group">
+          <label class="form-label">Linked Stop / Place (Optional)</label>
+          <select id="memActivitySelect" class="form-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Memory Title / Headline</label>
+          <input type="text" id="memTitle" class="form-input" placeholder="e.g. Sunset at Chellanam seawall" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Photo Caption / One-liner</label>
+          <input type="text" id="memCaption" class="form-input" placeholder="e.g. Waves crashing against the rocks during the coastal ride">
+        </div>
+
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Rating (1–5 Stars)</label>
+            <select id="memRating" class="form-select">
+              <option value="5" selected>★★★★★ (5/5)</option>
+              <option value="4">★★★★☆ (4/5)</option>
+              <option value="3">★★★☆☆ (3/5)</option>
+              <option value="2">★★☆☆☆ (2/5)</option>
+              <option value="1">★☆☆☆☆ (1/5)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Photo URL</label>
+            <input type="url" id="memPhotoUrl" class="form-input" placeholder="https://... (JPEG/PNG)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Highlight / Favourite Moment</label>
+          <input type="text" id="memFavouriteMoment" class="form-input" placeholder="e.g. Sipping fresh elaneer watching the fishing boats">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Shared Notes (Visible to both travellers)</label>
+          <textarea id="memNotes" class="form-textarea" rows="2" placeholder="Field observations, road conditions, menu tips..."></textarea>
+        </div>
+
+        <div class="form-group" style="background: rgba(220, 38, 38, 0.05); padding: 10px; border-radius: 8px; border: 1px dashed rgba(220, 38, 38, 0.25);">
+          <label class="form-label" style="color: #b91c1c;">🔒 Optional Private Notes (Author's Eyes Only)</label>
+          <textarea id="memPrivateNotes" class="form-textarea" rows="2" placeholder="Personal reflections or gifts/surprise notes hidden from partner & recap exports..."></textarea>
+          <small style="color: #991b1b; font-size: 0.72rem;">Strictly stripped from partner view and excluded from exported summaries.</small>
+        </div>
+
+        <div class="form-group" style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer;">
+            <input type="checkbox" id="memIsFavourite" style="accent-color: #f59e0b; width: 16px; height: 16px;">
+            <span>★ Mark as Favourite</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer;">
+            <input type="checkbox" id="memIsMustRevisit" style="accent-color: var(--kerala-terracotta); width: 16px; height: 16px;">
+            <span>📍 Must Revisit in Future</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer;">
+            <input type="checkbox" id="memIsPrivate" style="accent-color: #dc2626; width: 16px; height: 16px;">
+            <span>🔒 Keep Entire Moment Private</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block" style="margin-top: 10px;">Save Travel Memory</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SIDE-BY-SIDE BACKUP SWAP (STAGE 7) -->
+  <!-- ========================================== -->
+  <div id="swapComparisonModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="swapModalTitle">
+    <div class="modal-sheet" style="max-width: 640px;">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h3 id="swapModalTitle" class="modal-title">⚖️ Side-by-Side Swap Comparison</h3>
+        <button class="icon-btn" onclick="OntheGoBackups.closeSwapModal()">✕</button>
+      </div>
+      <div id="swapComparisonContent" style="padding: 12px 0;"></div>
+    </div>
+  </div>
+
   <!-- Leaflet Map Script -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Modules -->
+  <script src="./js/security.js"></script>
   <script src="./js/data.js"></script>
   <script src="./js/migrations.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/reliability.js"></script>
+  <script src="./js/sync_engine.js"></script>
+  <script src="./js/offline_vault.js"></script>
   <script src="./js/collaboration.js"></script>
+  <script src="./js/reminders.js"></script>
+  <script src="./js/engine.js"></script>
+  <script src="./js/weather.js"></script>
+  <script src="./js/ai_adjustments.js"></script>
   <script src="./js/timehelper.js"></script>
+  <script src="./js/journal.js"></script>
+  <script src="./js/reports.js"></script>
+  <script src="./js/budget.js"></script>
+  <script src="./js/assistant.js"></script>
+  <script src="./js/destination_catalogue.js"></script>
   <script src="./js/itinerary.js"></script>
   <script src="./js/map.js"></script>
   <script src="./js/expenses.js"></script>

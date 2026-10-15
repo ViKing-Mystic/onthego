@@ -1765,4 +1765,132 @@ button, input, select, textarea {
   border: 1px solid rgba(194, 89, 63, 0.25);
 }
 
+/* ==========================================================================
+   STAGE 3: ACTIONABLE NOTIFICATIONS, WEATHER & FEASIBILITY ENGINE STYLES
+   ========================================================================== */
+
+.notif-badge-pill {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  width: 17px;
+  height: 17px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-card);
+}
+
+.weather-strip {
+  transition: all 0.2s ease;
+}
+
+.weather-strip:hover {
+  border-color: var(--ocean-teal-light);
+}
+
+/* ==========================================================================
+   STAGE 5: TRAVEL MEMORIES, REPORTS, BUDGET INTELLIGENCE & AI ASSISTANT
+   ========================================================================== */
+
+.floating-assistant-btn {
+  position: fixed;
+  bottom: 78px;
+  right: 16px;
+  z-index: 90;
+  background: linear-gradient(135deg, var(--ocean-teal), var(--ocean-teal-dark));
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(13, 130, 138, 0.35);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.floating-assistant-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(13, 130, 138, 0.45);
+}
+
+.floating-assistant-btn:active {
+  transform: scale(0.96);
+}
+
+@media (min-width: 768px) {
+  .floating-assistant-btn {
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+.journal-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.journal-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.journal-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.modal-overlay.open,
+.modal-overlay.active {
+  display: flex;
+}
+
+/* ==========================================================================
+   PRODUCTION ACCESSIBILITY (a11y) & TOUCH TARGET HARDENING
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--ocean-teal) !important;
+  outline-offset: 2px !important;
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-sm:focus-visible,
+.icon-btn:focus-visible,
+.day-pill:focus-visible,
+.more-nav-pill:focus-visible,
+.rec-filter-btn:focus-visible {
+  outline: 2px solid var(--ocean-teal) !important;
+  outline-offset: 2px !important;
+}
+
+/* Ensure mobile touch targets meet WCAG 2.5.5 minimum 44x44px */
+@media (pointer: coarse) {
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+
+  .day-pill {
+    min-height: 44px;
+  }
+
+  .nav-item {
+    min-height: 48px;
+  }
+}
 

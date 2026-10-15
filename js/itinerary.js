@@ -137,6 +137,7 @@ window.OntheGoItinerary = {
               <span class="stop-time-badge">⏱ ${act.time || 'Flexible'}</span>
               <span class="stop-cat-badge cat-${(act.category || 'Sightseeing').toLowerCase()}">${act.category}</span>
               ${act.isFixedCommitment ? `<span style="font-size: 0.68rem; font-weight: 800; color: var(--sunset-coral); background: rgba(249,115,22,0.15); padding: 2px 6px; border-radius: 4px;">Fixed Commitment</span>` : ''}
+              ${act.pendingSync ? `<span class="split-tag tag-custom" style="background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; font-size: 0.68rem;">🕒 Pending Sync</span>` : ''}
               ${isSkipped ? `<span style="font-size: 0.68rem; font-weight: 700; color: var(--text-dim); background: var(--bg-input); padding: 2px 6px; border-radius: 4px;">Skipped</span>` : ''}
               ${safeguardFlag ? `<span style="font-size: 0.68rem; font-weight: 800; color: var(--danger); background: rgba(220,38,38,0.15); padding: 2px 6px; border-radius: 4px;">🚨 Safeguard Alert</span>` : ''}
             </div>
@@ -165,6 +166,43 @@ window.OntheGoItinerary = {
               <div><b>Day 5 Train Safeguard Alert:</b> ${safeguardFlag.reason}</div>
             </div>
           ` : ''}
+
+          ${(() => {
+            const risk = window.OntheGoWeather ? OntheGoWeather.getRiskForActivity(act.id) : null;
+            if (!risk) return '';
+            return `
+              <div class="safeguard-act-alert ${risk.riskLevel === 'high' ? 'danger' : 'warning'}" style="margin-bottom: 6px;">
+                <span>${risk.riskLevel === 'high' ? '🚨' : '🌊'}</span>
+                <div>
+                  <b>${risk.advisoryTitle}:</b> ${risk.advisoryDetails}
+                  <div style="font-size: 0.7rem; margin-top: 2px; color: var(--text-main);">
+                    📞 <b>Action:</b> ${risk.recommendation}
+                  </div>
+                </div>
+              </div>
+            `;
+          })()}
+
+          ${(() => {
+            const advisory = window.OntheGoEngine ? OntheGoEngine.getOutdoorActivityAdvisory(act) : null;
+            if (!advisory) return '';
+            return `
+              <div class="safeguard-act-alert warning" style="margin-bottom: 6px;">
+                <span>🌊</span>
+                <div>
+                  <b>Outdoor Activity & Conditions Check:</b>
+                  <div style="font-size: 0.74rem; color: var(--text-main); margin-top: 2px;">
+                    ${advisory.message}
+                  </div>
+                  ${advisory.operatorPhone ? `
+                    <div style="margin-top: 4px;">
+                      <a href="tel:${advisory.operatorPhone.replace(/\\s+/g, '')}" class="btn-sm btn-primary-sm" style="font-size: 0.68rem; padding: 2px 8px;">📞 Call ${advisory.operatorName}</a>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          })()}
 
           ${hasConflict ? `
             <div class="stop-conflict-badge">
@@ -205,6 +243,10 @@ window.OntheGoItinerary = {
 
             <button type="button" class="btn-backup-action" onclick="OntheGoBackups.openForStop('${act.id}')">
               🔀 Alternatives & Backups
+            </button>
+
+            <button type="button" class="btn-sm" onclick="OntheGoJournal.openAddMemoryModal('${act.id}')" title="Attach photo or write memory for this stop">
+              📷 Memory
             </button>
 
             <button type="button" class="btn-sm" onclick="OntheGoItinerary.toggleSkip('${act.id}')">
@@ -397,7 +439,10 @@ window.OntheGoItinerary = {
         }
       }
     } else {
-      // Create new
+      const isOnline = (window.OntheGoReliability && OntheGoReliability.isOnline)
+        ? OntheGoReliability.isOnline()
+        : navigator.onLine;
+
       const newAct = {
         id: "act-custom-" + Date.now(),
         order: (targetDay.activities?.length || 0) + 1,
@@ -410,6 +455,7 @@ window.OntheGoItinerary = {
         cost,
         notes,
         status: "pending",
+        pendingSync: !isOnline,
         verified: false,
         createdAt: new Date().toISOString(),
         lastModifiedBy: window.OntheGoCollaboration ? OntheGoCollaboration.activeTravellerId : "traveller-1",
@@ -417,6 +463,15 @@ window.OntheGoItinerary = {
       };
       targetDay.activities = targetDay.activities || [];
       targetDay.activities.push(newAct);
+
+      if (!isOnline && window.OntheGoSyncEngine) {
+        OntheGoSyncEngine.enqueueOperation({
+          entityType: "activity",
+          action: "create",
+          recordId: newAct.id,
+          payload: newAct
+        });
+      }
 
       if (window.OntheGoCollaboration) {
         OntheGoCollaboration.recordChange({
@@ -427,7 +482,7 @@ window.OntheGoItinerary = {
         });
       }
 
-      OntheGoApp.showToast("New stop added to itinerary! ✓");
+      OntheGoApp.showToast(isOnline ? "New stop added to itinerary! ✓" : "Offline: Stop saved locally & queued for sync 🕒");
       OntheGoApp.saveState();
       OntheGoApp.closeModals();
       this.renderCurrentDay();
@@ -436,6 +491,10 @@ window.OntheGoItinerary = {
   },
 
   applyActivitySave(d, idx, proposedAct, dayId, targetDay, wasMaterial) {
+    const isOnline = (window.OntheGoReliability && OntheGoReliability.isOnline)
+      ? OntheGoReliability.isOnline()
+      : navigator.onLine;
+
     const act = d.activities[idx];
     act.title = proposedAct.title;
     act.time = proposedAct.time;
@@ -443,6 +502,7 @@ window.OntheGoItinerary = {
     act.location = proposedAct.location;
     act.cost = proposedAct.cost;
     act.notes = proposedAct.notes;
+    act.pendingSync = !isOnline;
     act.lastModifiedAt = new Date().toISOString();
     act.lastModifiedBy = window.OntheGoCollaboration ? OntheGoCollaboration.activeTravellerId : "traveller-1";
 
@@ -456,6 +516,23 @@ window.OntheGoItinerary = {
       targetDay.activities.push(act);
     }
 
+    if (!isOnline && window.OntheGoSyncEngine) {
+      OntheGoSyncEngine.enqueueOperation({
+        entityType: "activity",
+        action: "update",
+        recordId: act.id,
+        payload: {
+          title: act.title,
+          time: act.time,
+          category: act.category,
+          location: act.location,
+          cost: act.cost,
+          notes: act.notes,
+          mapUrl: act.mapUrl
+        }
+      });
+    }
+
     if (window.OntheGoCollaboration) {
       OntheGoCollaboration.recordChange({
         action: wasMaterial ? "material_change" : "updated",
@@ -465,7 +542,7 @@ window.OntheGoItinerary = {
       });
     }
 
-    OntheGoApp.showToast(wasMaterial ? "Material change confirmed & synchronized! ⚠️" : "Stop updated successfully! ✓");
+    OntheGoApp.showToast(isOnline ? (wasMaterial ? "Material change confirmed & synchronized! ⚠️" : "Stop updated successfully! ✓") : "Offline: Stop updated locally & queued for sync 🕒");
     OntheGoApp.saveState();
     OntheGoApp.closeModals();
     this.renderCurrentDay();

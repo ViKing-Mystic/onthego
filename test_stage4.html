@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OntheGO Stage 4 Verification & Offline Simulation Suite</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #faf7f2; color: #182320; }
+    h1 { color: #0d828a; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 20px; }
+    .test-pass { color: #15803d; font-weight: bold; }
+    .test-fail { color: #dc2626; font-weight: bold; }
+    .test-row { padding: 6px 0; border-bottom: 1px solid #e5ded2; font-size: 13.5px; }
+    .scenario-header { margin-top: 24px; font-weight: 800; font-size: 1.05rem; color: #0f766e; border-bottom: 2px solid #0d828a; padding-bottom: 4px; }
+    #summary { margin-top: 24px; font-size: 17px; font-weight: bold; padding: 14px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🛵 OntheGO Stage 4 Automated Verification & Simulation Suite</h1>
+  <div class="subtitle">Offline Capabilities • IndexedDB • Sync Queue • Conflict Engine • Deadline Safeguards • Fault Injection</div>
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <!-- Mock Leaflet to avoid external network requests -->
+  <script>window.L = { map: () => ({ setView: () => ({ addTo: () => {} }), fitBounds: () => {} }), tileLayer: () => ({ addTo: () => {} }), marker: () => ({ addTo: () => ({ bindPopup: () => {} }) }), polyline: () => ({ addTo: () => {} }), latLngBounds: () => ({ extend: () => {} }), icon: () => ({}) };</script>
+
+  <!-- Load dependencies in exact order -->
+  <script src="./js/data.js"></script>
+  <script src="./js/migrations.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/reliability.js"></script>
+  <script src="./js/sync_engine.js"></script>
+  <script src="./js/offline_vault.js"></script>
+  <script src="./js/collaboration.js"></script>
+  <script src="./js/reminders.js"></script>
+  <script src="./js/engine.js"></script>
+  <script src="./js/weather.js"></script>
+  <script src="./js/ai_adjustments.js"></script>
+  <script src="./js/timehelper.js"></script>
+  <script src="./js/itinerary.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/expenses.js"></script>
+  <script src="./js/backups.js"></script>
+  <script src="./js/restaurants.js"></script>
+  <script src="./js/checklist.js"></script>
+  <script src="./js/wallet.js"></script>
+  <script src="./js/app.js"></script>
+
+  <script>
+    const results = [];
+    function assert(name, condition, details = "") {
+      results.push({ name, passed: !!condition, details });
+      const row = document.createElement("div");
+      row.className = "test-row";
+      row.innerHTML = `<span class="${condition ? 'test-pass' : 'test-fail'}">${condition ? '✓ PASS' : '✗ FAIL'}</span>: <b>${name}</b> ${details ? '(' + details + ')' : ''}`;
+      document.getElementById("test-results").appendChild(row);
+    }
+
+    function addScenarioHeader(title) {
+      const h = document.createElement("div");
+      h.className = "scenario-header";
+      h.innerText = title;
+      document.getElementById("test-results").appendChild(h);
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        // Initialize Storage & State
+        await OntheGoStorage.init();
+        OntheGoApp.state = OntheGoMigrations.getFreshDefaultState();
+        OntheGoApp.saveState();
+
+        OntheGoReliability.init();
+        OntheGoSyncEngine.init();
+        OntheGoVault.init();
+        OntheGoEngine.init();
+        OntheGoReminders.init();
+
+        // =========================================================
+        // 1. OFFLINE CAPABILITIES & INDEXEDDB PERSISTENCE
+        // =========================================================
+        addScenarioHeader("1. Offline Storage Layer & Essential Records Persistence");
+        assert("OntheGO IndexedDB storage layer initialized", OntheGoStorage.isReady === true || !window.indexedDB);
+
+        // Save trip state snapshot to IndexedDB
+        const idbSaveSuccess = await OntheGoStorage.saveTripState(OntheGoApp.state);
+        assert("Trip state successfully persisted to IndexedDB", idbSaveSuccess === true || !window.indexedDB);
+
+        const loadedFromIdb = await OntheGoStorage.loadTripState();
+        assert("Trip state retrievable from IndexedDB with schema version >= 8", loadedFromIdb && loadedFromIdb.schemaVersion >= 8);
+        assert("Current and original itineraries preserved in storage", loadedFromIdb && Array.isArray(loadedFromIdb.trips) && loadedFromIdb.trips.length > 0);
+        assert("Activities, addresses, and saved map links present", loadedFromIdb?.trips[0]?.days[0]?.activities[0]?.mapUrl?.includes("maps"));
+        assert("Confirmed accommodation and booking references present", Object.keys(loadedFromIdb?.trips[0]?.commitments || {}).length >= 3);
+        assert("Checklists and shared preferences present in storage", loadedFromIdb?.checklist?.length > 0 && !!loadedFromIdb?.preferences?.foodAndDining);
+        assert("Expense records stored with minor units in paise", loadedFromIdb?.expenses?.length > 0 && loadedFromIdb?.expenses[0]?.amountPaise > 0);
+        assert("Backup database recommendations stored with verification dates", loadedFromIdb?.backupDatabase?.length >= 24 && !!loadedFromIdb?.backupDatabase[0]?.lastVerified);
+
+        // Pre-sync snapshot creation test
+        const snapId = await OntheGoStorage.createRecoverySnapshot(OntheGoApp.state, "test_pre_sync");
+        assert("Pre-sync recovery snapshot created successfully", typeof snapId === "string" && snapId.startsWith("snap_"));
+
+        // =========================================================
+        // 2. SCENARIO 1: INTERNET LOSS DURING AN EXPENSE ENTRY
+        // =========================================================
+        addScenarioHeader("2. Scenario 1: Internet Loss During Expense Entry & Reconnection");
+
+        // Simulate mobile data loss on road trip
+        OntheGoReliability.setSimulatedOffline(true);
+        assert("Reliability engine reports offline status", OntheGoReliability.isOnline() === false);
+
+        // Add expense while offline
+        const offlineExpData = {
+          amount: 850,
+          description: "No. 1 Kallu Shap Toddy & Karimeen Lunch",
+          category: "Food and drinks",
+          date: "2026-10-18",
+          paidBy: "traveller-1",
+          splitMethod: "equal"
+        };
+
+        const idempotencyKey = OntheGoReliability.generateIdempotencyKey("exp", offlineExpData.description);
+        const offlineExp = {
+          id: "exp-offline-1",
+          idempotencyKey,
+          amount: 850,
+          amountPaise: 85000,
+          amountInInrPaise: 85000,
+          currency: "INR",
+          description: offlineExpData.description,
+          category: offlineExpData.category,
+          date: offlineExpData.date,
+          paidBy: offlineExpData.paidBy,
+          splitMethod: "equal",
+          splitDetails: [
+            { travellerId: "traveller-1", amountPaise: 42500 },
+            { travellerId: "traveller-2", amountPaise: 42500 }
+          ],
+          pendingSync: true,
+          createdAt: new Date().toISOString()
+        };
+
+        OntheGoApp.state.expenses.push(offlineExp);
+        const queuedOp = OntheGoSyncEngine.enqueueOperation({
+          entityType: "expense",
+          action: "create",
+          recordId: offlineExp.id,
+          payload: offlineExp,
+          idempotencyKey
+        });
+
+        assert("Offline expense logged in local state with pendingSync badge", offlineExp.pendingSync === true);
+        assert("Offline expense queued in syncQueue with status 'pending'", queuedOp && queuedOp.status === "pending");
+        assert("Pending sync counter reflects 1 pending item", OntheGoSyncEngine.getPendingCount() === 1);
+
+        // Reconnect cellular network
+        OntheGoReliability.setSimulatedOffline(false);
+        assert("Connection restored to online", OntheGoReliability.isOnline() === true);
+
+        // Run sync engine
+        const syncResult = await OntheGoSyncEngine.processSyncQueue();
+        assert("Sync queue processed successfully upon reconnection", syncResult.success === true && syncResult.appliedCount >= 1, JSON.stringify(syncResult));
+        assert("Queued expense status updated to 'applied'", queuedOp.status === "applied");
+        assert("Pending sync counter reset to 0", OntheGoSyncEngine.getPendingCount() === 0);
+
+        // Test duplicate submission protection
+        const dupCheck = OntheGoSyncEngine.detectDuplicateExpense(offlineExp, idempotencyKey);
+        assert("Idempotency guard detects already recorded expense", dupCheck === true);
+
+        const expensesCountBefore = OntheGoApp.state.expenses.length;
+        // Attempt duplicate sync replay
+        await OntheGoSyncEngine.processSyncQueue();
+        assert("Replaying sync DOES NOT duplicate expense in ledger", OntheGoApp.state.expenses.length === expensesCountBefore);
+
+        // =========================================================
+        // 3. SCENARIO 2: TWO TRAVELLERS EDITING AN ACTIVITY OFFLINE
+        // =========================================================
+        addScenarioHeader("3. Scenario 2: Two Travellers Concurrent Offline Activity Edits");
+
+        OntheGoReliability.setSimulatedOffline(true);
+
+        // Traveller 1 (Vishnu) edits notes on act-2-1
+        const opT1 = OntheGoSyncEngine.enqueueOperation({
+          entityType: "activity",
+          action: "update",
+          recordId: "act-2-1",
+          payload: { notes: "Stop at Pandhal Cafe instead if Qissa has a waitlist." },
+          travellerId: "traveller-1",
+          travellerName: "Vishnu"
+        });
+
+        // Traveller 2 (Co-rider) updates checklist task offline
+        const opT2 = OntheGoSyncEngine.enqueueOperation({
+          entityType: "checklist",
+          action: "update",
+          recordId: "chk-1",
+          payload: { completed: true },
+          travellerId: "traveller-2",
+          travellerName: "Co-rider"
+        });
+
+        assert("Traveller 1 offline activity edit queued with attribution", opT1.travellerName === "Vishnu" && opT1.status === "pending");
+        assert("Traveller 2 offline checklist edit queued with attribution", opT2.travellerName === "Co-rider" && opT2.status === "pending");
+        assert("Both concurrent operations coexist in offline queue", OntheGoApp.state.syncQueue.filter(q => q.status === "pending").length >= 2);
+
+        // Reconnect and process
+        OntheGoReliability.setSimulatedOffline(false);
+        const multiSyncResult = await OntheGoSyncEngine.processSyncQueue();
+        assert("Both travellers' non-colliding changes applied seamlessly", multiSyncResult.appliedCount >= 2, JSON.stringify(multiSyncResult));
+
+        // =========================================================
+        // 4. SCENARIO 3: RECONNECTION WITH CONFLICTING CHANGES
+        // =========================================================
+        addScenarioHeader("4. Scenario 3: Reconnection with Conflicting Changes & Hard Constraints");
+
+        // Simulate concurrent conflicting time update on act-1-4
+        const conflictOp = {
+          opId: "op-conflict-test",
+          idempotencyKey: "test_conflict_act_1_4",
+          entityType: "activity",
+          action: "update",
+          recordId: "act-1-4",
+          payload: { time: "05:00 PM - 06:00 PM" },
+          baseVersion: 1,
+          timestamp: new Date(Date.now() - 60000).toISOString(),
+          travellerId: "traveller-2",
+          travellerName: "Co-rider",
+          status: "pending"
+        };
+
+        // Current record was modified by partner recently
+        const day1 = OntheGoApp.state.trips[0].days[0];
+        const act1_4 = day1.activities.find(a => a.id === "act-1-4");
+        act1_4.lastModifiedBy = "traveller-1";
+        act1_4.lastModifiedAt = new Date().toISOString();
+        act1_4.time = "03:30 PM - 04:30 PM";
+
+        const conflictCheck = OntheGoSyncEngine.detectConcurrentConflict(conflictOp);
+        assert("Concurrent collision detected on overlapping field", conflictCheck.hasConflict === true && conflictCheck.canAutoReconcile === false);
+
+        OntheGoSyncEngine.recordConflict(conflictOp, conflictCheck.reason);
+        assert("Conflict recorded in state.syncConflicts with details", OntheGoApp.state.syncConflicts.length > 0);
+
+        // Test manual conflict resolution ("keep_mine")
+        const activeConflict = OntheGoApp.state.syncConflicts[0];
+        OntheGoSyncEngine.resolveConflict(activeConflict.conflictId, "keep_mine");
+        assert("Conflict resolved cleanly via traveller choice", activeConflict.resolved === true);
+
+        // HARD CONSTRAINT SAFEGUARD TEST:
+        // Attempting to skip or reschedule fixed 2:00 PM Vande Bharat train departure offline
+        const illegalTrainOp = {
+          entityType: "activity",
+          action: "delete",
+          recordId: "act-5-8", // Train departure
+          payload: { status: "skipped" }
+        };
+        const isBlocked = OntheGoSyncEngine.isViolatingHardConstraint(illegalTrainOp);
+        assert("Sync engine STRICTLY REJECTS overwriting 2:00 PM Vande Bharat departure", isBlocked === true);
+
+        // =========================================================
+        // 5. SCENARIO 4: EXPIRED BOOKING OR STALE CONTACT DETAIL
+        // =========================================================
+        addScenarioHeader("5. Scenario 4: Stale Contact Details & Closed Venue Safeguards");
+
+        const unconfirmedAct = OntheGoApp.state.trips[0].days[0].activities.find(a => a.isUserProvided && !a.verified);
+        assert("User-provided contact explicitly flagged as unverified", unconfirmedAct && unconfirmedAct.verified === false);
+
+        // Cafe Crafters permanently closed check
+        const crafters = OntheGoApp.state.backupDatabase.find(b => b.id === "bk-crafters");
+        assert("Cafe Crafters stored with 'reported_closed' status", crafters?.status === "reported_closed");
+        assert("Cafe Crafters tagged with 'Verify before visiting'", crafters?.tags?.includes("Verify before visiting"));
+
+        const scoredCrafters = OntheGoBackups.scoreAlternative(crafters, { id: "test", category: "Cafe", lat: 9.96, lng: 76.24 }, { dayNumber: 1 });
+        assert("Reported closed venue given score 0 and blocked from recommendation", scoredCrafters.totalScore === 0 && scoredCrafters.isClosedToday === true);
+
+        // =========================================================
+        // 6. SCENARIO 5: FAILED ROUTING REQUEST & GRACEFUL DEGRADATION
+        // =========================================================
+        addScenarioHeader("6. Scenario 5: Failed Routing Request & Network Timeout Fallback");
+
+        // Force simulated offline to trigger routing network failure
+        OntheGoReliability.setSimulatedOffline(true);
+
+        const fromAct = { id: "act-test-from", lat: 9.965, lng: 76.242 };
+        const toAct = { id: "act-test-to", lat: 9.957, lng: 76.259 };
+        const fallbackLeg = await OntheGoEngine.getTravelLeg(fromAct, toAct);
+
+        assert("Routing engine returns valid fallback leg during network failure", !!fallbackLeg && fallbackLeg.distanceKm > 0);
+        assert("Fallback provider identifies Haversine coastal estimate", fallbackLeg.provider.includes("haversine") || fallbackLeg.provider.includes("osrm_cached"));
+        assert("Uncertainty buffer incorporated into duration estimate", fallbackLeg.uncertaintyBufferMins >= 4);
+
+        OntheGoReliability.setSimulatedOffline(false);
+
+        // Privacy-preserving error logger test
+        OntheGoReliability.logError("Test simulated error with token=secret123456", { apiKey: "AIzaSySecretApiKey", userPin: "762415" });
+        const sanitizedTest = OntheGoReliability.sanitize({ apiKey: "AIzaSyTest", note: "Bearer secret_token_xyz" });
+        assert("Error logger sanitizes API keys and bearer tokens", sanitizedTest.apiKey === "[REDACTED_SECRET]" && sanitizedTest.note.includes("[REDACTED]"));
+
+        // =========================================================
+        // 7. SCENARIO 6: TRIP-SPECIFIC DEADLINE PROTECTION (20 OCT 2026)
+        // =========================================================
+        addScenarioHeader("7. Scenario 6: 20 Oct 2026 Vande Bharat & Scooter Return Deadline Protection");
+
+        // Test explicit latest safe departure calculation
+        const deadlineCalc = OntheGoEngine.calculateLatestSafeDeparture("13:00");
+        assert("Scooter return target is 1:00 PM (13:00)", deadlineCalc.targetReturnTime === "01:00 PM");
+        assert("Latest stated scooter return deadline is 1:30 PM (13:30)", deadlineCalc.hardReturnDeadline === "01:30 PM");
+        assert("Fixed Vande Bharat departure is 2:00 PM (14:00)", deadlineCalc.trainDepartureTime === "02:00 PM");
+        assert("Explicit station buffer is 30 minutes", deadlineCalc.stationBufferMins === 30);
+        assert("Transit ride duration is 45 minutes", deadlineCalc.travelDurationMins === 45);
+        assert("Recommended latest departure from Fort Kochi is 12:15 PM", deadlineCalc.recommendedDepartureTime === "12:15 PM");
+        assert("Absolute hard cutoff departure from Fort Kochi is 12:45 PM", deadlineCalc.absoluteLatestDepartureTime === "12:45 PM");
+
+        // Forward-simulate delay on Day 5 morning (45 mins delay)
+        const day5Sim = OntheGoEngine.simulateDelay("day-5", 45);
+        assert("45-minute delay triggers Day 5 warning / infeasibility", day5Sim.hasWarnings === true);
+
+        // Verify actionable recommendations: drop optional museum, shorten brunch, protect train
+        const day5Recs = OntheGoEngine.generateRecommendations(day5Sim);
+        assert("Recommendation engine preserves fixed train and accommodation", day5Recs.preservedBookings.some(b => b.includes("Vande Bharat")));
+        assert("Recommendation suggests skipping optional museum (act-5-4)", day5Recs.actions.some(a => a.actionType === "skip"));
+        assert("Recommendation suggests shortening flexible meal (act-5-3)", day5Recs.actions.some(a => a.actionType === "shorten"));
+
+        // Outdoor activity condition check & operator advisory
+        const kayakAct = { id: "act-3-1", title: "Morning Backwater Kayaking with Opulence", category: "Activity" };
+        const kayakAdvisory = OntheGoEngine.getOutdoorActivityAdvisory(kayakAct);
+        assert("Kayaking activity includes Opulence operator phone (+91 89211 72358)", kayakAdvisory?.operatorPhone === "+91 89211 72358");
+        assert("Advisory reminds traveller to verify local water conditions and not rely on cached weather", kayakAdvisory?.message?.includes("verify local surf"));
+
+        // =========================================================
+        // 8. SCENARIO 7: APPLICATION RESTART WHILE OFFLINE
+        // =========================================================
+        addScenarioHeader("8. Scenario 7: Application Restart While Offline (IndexedDB Hydration)");
+
+        // Add a marker in state and save
+        OntheGoApp.state.storageAudit.lastSyncAttempt = "2026-10-14T14:00:00Z";
+        OntheGoApp.saveState();
+        await OntheGoStorage.saveTripState(OntheGoApp.state);
+
+        // Simulate complete cold app restart by wiping in-memory state
+        OntheGoApp.state = null;
+        assert("In-memory state reset to null", OntheGoApp.state === null);
+
+        // Hydrate state from storage
+        await OntheGoApp.loadState();
+        assert("App successfully recovered state from local storage / IndexedDB", !!OntheGoApp.state);
+        assert("Recovered state has schema version >= 8", OntheGoApp.state?.schemaVersion >= 8);
+        assert("Recovered state retains all 5 trip days intact", OntheGoApp.state?.trips[0]?.days?.length === 5);
+        assert("Recovered state retains all confirmed booking records", Object.keys(OntheGoApp.state?.trips[0]?.commitments || {}).length >= 3);
+        assert("Financial ledger remains intact with zero corruption", OntheGoApp.state?.expenses?.length > 0);
+
+        // =========================================================
+        // 9. SUMMARY & SCENARIO AUDIT
+        // =========================================================
+        const passedCount = results.filter(r => r.passed).length;
+        const totalCount = results.length;
+        const allPassed = passedCount === totalCount;
+
+        const summaryEl = document.getElementById("summary");
+        summaryEl.style.background = allPassed ? "#dcfce7" : "#fee2e2";
+        summaryEl.style.color = allPassed ? "#15803d" : "#dc2626";
+        summaryEl.innerText = `Total Tests: ${totalCount} | Passed: ${passedCount} | Failed: ${totalCount - passedCount} | Result: ${allPassed ? "100% ALL STAGE 4 SCENARIOS PASSED ✓" : "FAILURES DETECTED"}`;
+
+        window.STAGE4_TEST_SUMMARY = {
+          total: totalCount,
+          passed: passedCount,
+          failed: totalCount - passedCount,
+          allPassed
+        };
+      } catch (err) {
+        console.error("Test execution error:", err);
+        assert("Global test execution uncaught error", false, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

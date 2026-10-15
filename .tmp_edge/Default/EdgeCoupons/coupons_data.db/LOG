@@ -1,5 +1,0 @@
-2026/10/14-15:55:08.359 5cd4 Creating DB d:\Documents\OntheGo\.tmp_edge\Default\EdgeCoupons/coupons_data.db since it was missing.
-2026/10/14-15:55:08.383 5cd4 Reusing MANIFEST d:\Documents\OntheGo\.tmp_edge\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/10/14-15:55:08.652 65d8 Level-0 table #5: started
-2026/10/14-15:55:08.662 65d8 Level-0 table #5: 683273 bytes OK
-2026/10/14-15:55:08.665 65d8 Delete type=0 #3

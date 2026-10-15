@@ -1,5 +1,0 @@
-2026/10/14-15:55:05.356 7918 Creating DB d:\Documents\OntheGo\.tmp_edge\Default\Local Storage\leveldb since it was missing.
-2026/10/14-15:55:05.403 7918 Reusing MANIFEST d:\Documents\OntheGo\.tmp_edge\Default\Local Storage\leveldb/MANIFEST-000001
-2026/10/14-15:55:24.830 75bc Level-0 table #5: started
-2026/10/14-15:55:24.848 75bc Level-0 table #5: 51662 bytes OK
-2026/10/14-15:55:24.854 75bc Delete type=0 #3

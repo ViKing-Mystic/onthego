@@ -5,7 +5,7 @@
  */
 
 window.OntheGoMigrations = {
-  CURRENT_SCHEMA_VERSION: 6,
+  CURRENT_SCHEMA_VERSION: 9,
 
   /**
    * Migrates any loaded state object to the current schema version.
@@ -311,6 +311,109 @@ window.OntheGoMigrations = {
       state.schemaVersion = 6;
     }
 
+    if (version < 7) {
+      // Version 6 -> Version 7: Backup Database Candidates & Enhanced Verification
+      const freshDefaults = window.OntheGoDefaultData || {};
+      if (freshDefaults.backupDatabase && Array.isArray(freshDefaults.backupDatabase)) {
+        if (!Array.isArray(state.backupDatabase) || !state.backupDatabase.length) {
+          state.backupDatabase = JSON.parse(JSON.stringify(freshDefaults.backupDatabase));
+        } else {
+          freshDefaults.backupDatabase.forEach(defBackup => {
+            const existing = state.backupDatabase.find(b => b.id === defBackup.id);
+            if (!existing) {
+              state.backupDatabase.push(JSON.parse(JSON.stringify(defBackup)));
+            } else {
+              // Non-destructively enrich candidate fields
+              Object.assign(existing, {
+                rating: defBackup.rating,
+                reviewCount: defBackup.reviewCount,
+                openingHours: defBackup.openingHours,
+                phone: defBackup.phone,
+                address: defBackup.address,
+                mapUrl: defBackup.mapUrl,
+                status: defBackup.status,
+                notes: defBackup.notes,
+                category: defBackup.category,
+                source: defBackup.source,
+                isUserProvided: true
+              });
+            }
+          });
+        }
+      }
+
+      // Ensure Day 5 Kashi Art Cafe has updated contact/hours and is preserved as primary stop
+      if (state.trips && state.trips[0] && Array.isArray(state.trips[0].days)) {
+        const day5 = state.trips[0].days.find(d => d.id === "day-5" || d.dayNumber === 5);
+        if (day5 && Array.isArray(day5.activities)) {
+          const kashiAct = day5.activities.find(a => a.id === "act-5-3");
+          if (kashiAct) {
+            kashiAct.phone = "+91 484 221 5769";
+            kashiAct.address = "Burger Street, Fort Nagar, Fort Kochi 682001";
+            kashiAct.openingHours = "8:30 AM - 10:00 PM";
+            kashiAct.rating = 4.2;
+            kashiAct.reviewCount = 11380;
+            kashiAct.isUserProvided = true;
+          }
+        }
+      }
+
+      state.schemaVersion = 7;
+    }
+
+    if (version < 8) {
+      // Version 7 -> Version 8: Stage 4 Offline Capabilities, Sync Queue & Offline Vault
+      if (!Array.isArray(state.syncQueue)) {
+        state.syncQueue = [];
+      }
+      if (!Array.isArray(state.syncConflicts)) {
+        state.syncConflicts = [];
+      }
+      if (!Array.isArray(state.offlineDocuments) || !state.offlineDocuments.length) {
+        state.offlineDocuments = (window.OntheGoVault && window.OntheGoVault.DEFAULT_DOCUMENTS)
+          ? JSON.parse(JSON.stringify(window.OntheGoVault.DEFAULT_DOCUMENTS))
+          : [];
+      }
+      if (!state.storageAudit || typeof state.storageAudit !== "object") {
+        state.storageAudit = {
+          persistenceMode: "IndexedDB + LocalStorage Mirror",
+          offlineReadiness: true,
+          lastSyncAttempt: null
+        };
+      }
+
+      state.schemaVersion = 8;
+    }
+
+    if (version < 9) {
+      // Version 8 -> Version 9: Stage 5 Travel Memories, Reports, Assistant & Budget Forecast
+      if (!Array.isArray(state.memories)) {
+        state.memories = [];
+      }
+      if (!state.journalSettings || typeof state.journalSettings !== "object") {
+        state.journalSettings = {
+          showPrivateNotes: true,
+          selectedDestinationFilter: "all",
+          selectedTagFilter: "all"
+        };
+      }
+      if (!Array.isArray(state.assistantChatHistory)) {
+        state.assistantChatHistory = [
+          {
+            id: "msg_init",
+            role: "assistant",
+            text: "Namaskaram! 🌴 I am your OntheGO Travel Companion for your Kerala road trip. Ask me about next stops, cafe alternatives, sunset timings, expense settlements, or route adjustments.",
+            timestamp: new Date().toISOString()
+          }
+        ];
+      }
+      if (!state.budgetForecast || typeof state.budgetForecast !== "object") {
+        state.budgetForecast = {};
+      }
+
+      state.schemaVersion = 9;
+    }
+
     // Ensure theme setting respects coastal aesthetic
     if (!state.theme) {
       state.theme = "coastal-light";
@@ -421,3 +524,65 @@ window.OntheGoMigrations = {
       ]
     };
     state.reminders = [];
+    state.reminderSettings = {
+      enabled: true,
+      defaultLeadMins: 30,
+      quietHoursEnabled: true,
+      quietHoursStart: "22:30",
+      quietHoursEnd: "06:30",
+      timeZone: "Asia/Kolkata"
+    };
+    state.activeRecommendations = [];
+    state.notifications = [];
+    state.backupDatabase = defaultData.backupDatabase ? JSON.parse(JSON.stringify(defaultData.backupDatabase)) : [];
+    state.routingCache = {};
+    state.weatherCache = {};
+    state.aiProposals = [];
+    state.syncQueue = [];
+    state.syncConflicts = [];
+    state.offlineDocuments = (window.OntheGoVault && window.OntheGoVault.DEFAULT_DOCUMENTS)
+      ? JSON.parse(JSON.stringify(window.OntheGoVault.DEFAULT_DOCUMENTS))
+      : [];
+    state.storageAudit = {
+      persistenceMode: "IndexedDB + LocalStorage Mirror",
+      offlineReadiness: true,
+      lastSyncAttempt: null
+    };
+
+    if (Array.isArray(state.expenses)) {
+      state.expenses.forEach(e => {
+        if (e.amountPaise === undefined) {
+          e.amountPaise = Math.round((parseFloat(e.amount) || 0) * 100);
+        }
+        if (!e.currency) e.currency = "INR";
+        if (e.fxRate === undefined) e.fxRate = 1.0;
+        if (e.amountInInrPaise === undefined) {
+          e.amountInInrPaise = Math.round(e.amountPaise * e.fxRate);
+        }
+        if (!e.splitMethod) e.splitMethod = "equal";
+        if (!e.participants || !e.participants.length) {
+          e.participants = ["traveller-1", "traveller-2"];
+        }
+        if (!e.paidBy || e.paidBy === "Me") e.paidBy = "traveller-1";
+      });
+    }
+
+    state.memories = [];
+    state.journalSettings = {
+      showPrivateNotes: true,
+      selectedDestinationFilter: "all",
+      selectedTagFilter: "all"
+    };
+    state.assistantChatHistory = [
+      {
+        id: "msg_init",
+        role: "assistant",
+        text: "Namaskaram! 🌴 I am your OntheGO Travel Companion for your Kerala road trip. Ask me about next stops, cafe alternatives, sunset timings, expense settlements, or route adjustments.",
+        timestamp: new Date().toISOString()
+      }
+    ];
+    state.budgetForecast = {};
+
+    return state;
+  }
+};

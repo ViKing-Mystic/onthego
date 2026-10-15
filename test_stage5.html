@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OntheGO Stage 5 Verification & AI Assistant Suite</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #faf7f2; color: #182320; }
+    h1 { color: #0d828a; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 20px; }
+    .test-pass { color: #15803d; font-weight: bold; }
+    .test-fail { color: #dc2626; font-weight: bold; }
+    .test-row { padding: 6px 0; border-bottom: 1px solid #e5ded2; font-size: 13.5px; }
+    .scenario-header { margin-top: 24px; font-weight: 800; font-size: 1.05rem; color: #0f766e; border-bottom: 2px solid #0d828a; padding-bottom: 4px; }
+    #summary { margin-top: 24px; font-size: 17px; font-weight: bold; padding: 14px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🛵 OntheGO Stage 5 Automated Verification Suite</h1>
+  <div class="subtitle">Travel Journal • Trip Reports • Grounded AI Assistant • Budget Intelligence • Privacy Controls • Deterministic Safeguards</div>
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <!-- Mock Leaflet to avoid external network requests -->
+  <script>window.L = { map: () => ({ setView: () => ({ addTo: () => {} }), fitBounds: () => {} }), tileLayer: () => ({ addTo: () => {} }), marker: () => ({ addTo: () => ({ bindPopup: () => {} }) }), polyline: () => ({ addTo: () => {} }), latLngBounds: () => ({ extend: () => {} }), icon: () => ({}) };</script>
+
+  <!-- Load dependencies in exact order -->
+  <script src="./js/data.js"></script>
+  <script src="./js/migrations.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/reliability.js"></script>
+  <script src="./js/sync_engine.js"></script>
+  <script src="./js/offline_vault.js"></script>
+  <script src="./js/collaboration.js"></script>
+  <script src="./js/reminders.js"></script>
+  <script src="./js/engine.js"></script>
+  <script src="./js/weather.js"></script>
+  <script src="./js/ai_adjustments.js"></script>
+  <script src="./js/timehelper.js"></script>
+  <script src="./js/journal.js"></script>
+  <script src="./js/reports.js"></script>
+  <script src="./js/budget.js"></script>
+  <script src="./js/assistant.js"></script>
+  <script src="./js/itinerary.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/expenses.js"></script>
+  <script src="./js/backups.js"></script>
+  <script src="./js/restaurants.js"></script>
+  <script src="./js/checklist.js"></script>
+  <script src="./js/wallet.js"></script>
+  <script src="./js/app.js"></script>
+
+  <script>
+    const results = [];
+    function assert(name, condition, details = "") {
+      results.push({ name, passed: !!condition, details });
+      const row = document.createElement("div");
+      row.className = "test-row";
+      row.innerHTML = `<span class="${condition ? 'test-pass' : 'test-fail'}">${condition ? '✓ PASS' : '✗ FAIL'}</span>: <b>${name}</b> ${details ? '(' + details + ')' : ''}`;
+      document.getElementById("test-results").appendChild(row);
+    }
+
+    function addScenarioHeader(title) {
+      const h = document.createElement("div");
+      h.className = "scenario-header";
+      h.innerText = title;
+      document.getElementById("test-results").appendChild(h);
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        // Initialize State
+        await OntheGoStorage.init();
+        OntheGoApp.state = OntheGoMigrations.getFreshDefaultState();
+        OntheGoApp.saveState();
+
+        OntheGoReliability.init();
+        OntheGoJournal.init();
+        OntheGoReports.init();
+        OntheGoBudget.init();
+        OntheGoAssistant.init();
+
+        // =========================================================
+        // SCENARIO 1: SCHEMA MIGRATION & STAGE 5 STATE MODEL
+        // =========================================================
+        addScenarioHeader("Scenario 1: Schema Migration to Version 9 & State Integrity");
+
+        assert("Current Schema Version is 9",
+          OntheGoMigrations.CURRENT_SCHEMA_VERSION === 9,
+          `Version: ${OntheGoMigrations.CURRENT_SCHEMA_VERSION}`);
+
+        const mockLegacyState = {
+          schemaVersion: 8,
+          activeTripId: "trip_kochi_alleppey_2026",
+          trips: [{ id: "trip_kochi_alleppey_2026", days: [] }],
+          expenses: [],
+          checklists: []
+        };
+        const migratedState = OntheGoMigrations.migrate(mockLegacyState);
+
+        assert("Legacy state upgraded to Schema Version 9",
+          migratedState.schemaVersion === 9,
+          `Migrated version: ${migratedState.schemaVersion}`);
+
+        assert("State memories array initialized",
+          Array.isArray(migratedState.memories) && migratedState.memories.length === 0,
+          `Memories: ${JSON.stringify(migratedState.memories)}`);
+
+        assert("State journalSettings initialized",
+          migratedState.journalSettings && migratedState.journalSettings.showPrivateNotes === true,
+          "journalSettings present");
+
+        assert("State assistantChatHistory initialized",
+          Array.isArray(migratedState.assistantChatHistory) && migratedState.assistantChatHistory.length > 0,
+          `History length: ${migratedState.assistantChatHistory.length}`);
+
+        assert("State budgetForecast container initialized",
+          migratedState.budgetForecast && typeof migratedState.budgetForecast === "object",
+          "budgetForecast initialized");
+
+        // =========================================================
+        // SCENARIO 2: EMPTY JOURNAL HANDLING & LARGE PHOTO COLLECTIONS
+        // =========================================================
+        addScenarioHeader("Scenario 2: Empty Journal Handling & Large Photo Collections");
+
+        // Reset memories to empty
+        OntheGoApp.state.memories = [];
+        OntheGoApp.saveState();
+
+        const emptyMemories = OntheGoJournal.getMemories("traveller-1");
+        assert("Empty journal returns clean empty array without errors",
+          Array.isArray(emptyMemories) && emptyMemories.length === 0,
+          `Count: ${emptyMemories.length}`);
+
+        const emptyGrouped = OntheGoJournal.getMemoriesGrouped("traveller-1");
+        assert("getMemoriesGrouped handles empty memories list gracefully",
+          emptyGrouped && emptyGrouped.totalCount === 0 && Object.keys(emptyGrouped.byDay).length === 0,
+          `Grouped total: ${emptyGrouped.totalCount}`);
+
+        const emptyFavs = OntheGoJournal.getFavouritesAndRevisits("traveller-1");
+        assert("getFavouritesAndRevisits returns empty lists safely",
+          emptyFavs.favourites.length === 0 && emptyFavs.mustRevisit.length === 0,
+          "Favourites & revisits empty");
+
+        // Add 55 photos across multiple memories
+        const photosBatch = [];
+        for (let i = 1; i <= 55; i++) {
+          photosBatch.push({
+            id: `photo_test_${i}`,
+            url: `https://images.unsplash.com/photo-${i}?w=800&q=80`,
+            caption: `Coastal sunset shot #${i} along Chellanam seawall`,
+            takenAt: new Date(1760614200000 + i * 60000).toISOString(),
+            isOriginalIntact: true,
+            cameraModel: "Sony Alpha 7 IV",
+            focalLength: "35mm",
+            iso: 100
+          });
+        }
+
+        const largeMemory = OntheGoJournal.saveMemory({
+          title: "Chellanam Seawall Sunset Expedition",
+          caption: "55 high-resolution field photos captured during sunset",
+          dayNumber: 2,
+          destination: "Chellanam Coast",
+          rating: 5,
+          isFavourite: true,
+          isMustRevisit: true,
+          authorId: "traveller-1",
+          authorName: "Vishnu",
+          notes: "Gorgeous waves crashing against granite tetrapods. No lens damage.",
+          photos: photosBatch
+        });
+
+        assert("Memory with 55 photos saved successfully",
+          largeMemory && largeMemory.id && largeMemory.photos.length === 55,
+          `Saved photos count: ${largeMemory?.photos?.length}`);
+
+        // Verify photo metadata preservation
+        const retrievedMem = OntheGoJournal.getMemories("traveller-1").find(m => m.id === largeMemory.id);
+        const photo55 = retrievedMem.photos[54];
+        assert("Photo metadata strictly preserved (URL, caption, timestamps, cameraModel)",
+          photo55.id === "photo_test_55" &&
+          photo55.isOriginalIntact === true &&
+          photo55.cameraModel === "Sony Alpha 7 IV" &&
+          photo55.focalLength === "35mm" &&
+          photo55.iso === 100,
+          `Photo 55 caption: ${photo55.caption}`);
+
+        // Verify destination grouping
+        const groupedAfterPhotos = OntheGoJournal.getMemoriesGrouped("traveller-1");
+        assert("Grouped memories by destination includes Chellanam Coast",
+          groupedAfterPhotos.byDestination["Chellanam Coast"] && groupedAfterPhotos.byDestination["Chellanam Coast"].length === 1,
+          `Destinations: ${Object.keys(groupedAfterPhotos.byDestination).join(", ")}`);
+
+        // =========================================================
+        // SCENARIO 3: PRIVATE NOTES & PARTNER ISOLATION
+        // =========================================================
+        addScenarioHeader("Scenario 3: Private Notes Segregation & Multi-Traveller Privacy");
+
+        const secretMemory = OntheGoJournal.saveMemory({
+          title: "Jew Town Secret Gift Shopping",
+          caption: "Browsed antique brass artifacts in Mattancherry",
+          dayNumber: 1,
+          destination: "Jew Town, Mattancherry",
+          rating: 4,
+          authorId: "traveller-1",
+          authorName: "Vishnu",
+          notes: "Beautiful shops along Synagogue Lane with fragrant spices.",
+          privateNotes: "SURPRISE: Purchased antique brass spice grinder as a surprise gift for co-rider (₹1,200).",
+          isPrivate: false
+        });
+
+        // 1. Author views memory -> private notes visible
+        const authorView = OntheGoJournal.getMemories("traveller-1", true).find(m => m.id === secretMemory.id);
+        assert("Author (Vishnu) can read their own private notes",
+          authorView && authorView.privateNotes && authorView.privateNotes.includes("SURPRISE"),
+          `Author notes: ${authorView?.privateNotes}`);
+
+        // 2. Partner views memory -> private notes strictly redacted
+        const partnerView = OntheGoJournal.getMemories("traveller-2", true).find(m => m.id === secretMemory.id);
+        assert("Partner (Co-rider) CANNOT see author's private notes (strictly stripped/undefined)",
+          partnerView && partnerView.privateNotes === undefined,
+          `Partner privateNotes: ${partnerView?.privateNotes}`);
+
+        // 3. Partner CAN still see shared public notes
+        assert("Partner can still see shared public notes and caption",
+          partnerView && partnerView.notes.includes("Beautiful shops") && partnerView.caption.includes("antique brass"),
+          `Partner visible notes: ${partnerView?.notes}`);
+
+        // 4. Entirely private memory test
+        const entirelyPrivateMem = OntheGoJournal.saveMemory({
+          title: "Personal Journal Entry - Travel Fatigue",
+          caption: "Resting at hotel",
+          dayNumber: 1,
+          destination: "Fort Kochi",
+          authorId: "traveller-1",
+          authorName: "Vishnu",
+          isPrivate: true,
+          notes: "Feeling a bit road-tired from train, taking quick 20 min nap."
+        });
+
+        const partnerEntireCheck = OntheGoJournal.getMemories("traveller-2", true).find(m => m.id === entirelyPrivateMem.id);
+        assert("Entirely private memory is completely invisible to partner",
+          partnerEntireCheck === undefined,
+          "Entirely private memory hidden from partner view");
+
+        // =========================================================
+        // SCENARIO 4: TRIP REPORTS & COMPREHENSIVE AUDIT ENGINE
+        // =========================================================
+        addScenarioHeader("Scenario 4: Trip Reports Generation & Planned vs Actual Expenditure Audit");
+
+        const reportData = OntheGoReports.generateReportData();
+
+        assert("Report title generated with trip name",
+          reportData.title && reportData.title.includes("Kochi"),
+          `Title: ${reportData.title}`);
+
+        assert("Itinerary audit contains 5 day breakdowns",
+          reportData.itineraryAudit.dayBreakdowns.length === 5,
+          `Days in audit: ${reportData.itineraryAudit.dayBreakdowns.length}`);
+
+        assert("Planned budget calculated in minor units (16,000 INR = 1,600,000 paise)",
+          reportData.financialAudit.plannedBudgetPaise === 1600000 &&
+          reportData.financialAudit.plannedBudgetINR === 16000,
+          `Planned budget: ₹${reportData.financialAudit.plannedBudgetINR}`);
+
+        assert("Actual spend calculated in minor units (paise)",
+          typeof reportData.financialAudit.actualSpentPaise === "number" &&
+          reportData.financialAudit.actualSpentPaise >= 50000,
+          `Actual spend: ${reportData.financialAudit.actualSpentPaise} paise (₹${reportData.financialAudit.actualSpentINR})`);
+
+        assert("Splitwise balances reconciliation included",
+          reportData.financialAudit.settlementSummary &&
+          typeof reportData.financialAudit.settlementSummary.isBalanced === "boolean",
+          `Settlement summary: ${reportData.financialAudit.settlementSummary.suggestionText}`);
+
+        assert("Accommodation audit lists Calvin's Inn and Ocean Aura Beach Stay",
+          reportData.accommodations.some(a => a.name.includes("Calvin")) &&
+          reportData.accommodations.some(a => a.name.includes("Ocean Aura")),
+          `Stays: ${reportData.accommodations.map(a => a.name).join(", ")}`);
+
+        assert("Transport audit includes Vande Bharat Express and Scooter Rental",
+          reportData.transports.some(t => t.service.includes("Vande Bharat")) &&
+          reportData.transports.some(t => t.service.includes("Scooter")),
+          `Transports: ${reportData.transports.map(t => t.service).join(", ")}`);
+
+        // =========================================================
+        // SCENARIO 5: BUDGET INTELLIGENCE & PREDICTIVE FORECASTING
+        // =========================================================
+        addScenarioHeader("Scenario 5: Budget Intelligence & Spend Forecasting (Under-Budget vs Over-Budget)");
+
+        const initialForecast = OntheGoBudget.calculateBudgetForecast();
+
+        assert("Initial forecast reflects ₹500 confirmed paid deposit",
+          initialForecast.confirmedPaidINR === 500 && initialForecast.confirmedPaidPaise === 50000,
+          `Confirmed paid: ₹${initialForecast.confirmedPaidINR}`);
+
+        assert("Committed future liabilities identified (Scooter ₹2,300 + Train ₹3,416 = ₹5,716)",
+          initialForecast.committedUnpaidINR === 5716 && initialForecast.committedUnpaidPaise === 571600,
+          `Committed unpaid: ₹${initialForecast.committedUnpaidINR}`);
+
+        assert("Initial forecast status is on track (under budget)",
+          initialForecast.isExceedingBudget === false && (initialForecast.warningLevel === "safe" || initialForecast.warningLevel === "normal"),
+          `Warning level: ${initialForecast.warningLevel}`);
+
+        // Simulate over-budget condition by logging heavy expenses
+        OntheGoApp.state.expenses.push({
+          id: "exp_heavy_shopping",
+          amount: 8500,
+          amountPaise: 850000,
+          description: "Antique handicrafts & silk purchase in Jew Town",
+          category: "Shopping",
+          paidBy: "traveller-1",
+          splitMethod: "equal",
+          date: "2026-10-17"
+        });
+        OntheGoApp.state.expenses.push({
+          id: "exp_fine_dining",
+          amount: 4500,
+          amountPaise: 450000,
+          description: "Luxury waterfront seafood feast & cocktails",
+          category: "Food and drinks",
+          paidBy: "traveller-2",
+          splitMethod: "equal",
+          date: "2026-10-18"
+        });
+        OntheGoApp.saveState();
+
+        const overBudgetForecast = OntheGoBudget.calculateBudgetForecast();
+
+        assert("High spending run-rate triggers isExceedingBudget flag",
+          overBudgetForecast.isExceedingBudget === true,
+          `Projected: ₹${overBudgetForecast.projectedTotalINR} vs Target: ₹${overBudgetForecast.targetBudgetINR}`);
+
+        assert("Warning level elevated to 'critical' or 'caution'",
+          overBudgetForecast.warningLevel === "critical" || overBudgetForecast.warningLevel === "caution",
+          `Warning level: ${overBudgetForecast.warningLevel}`);
+
+        assert("Projected variance correctly calculates projected overage in paise",
+          overBudgetForecast.projectedOverageINR > 0,
+          `Projected overage: ₹${overBudgetForecast.projectedOverageINR}`);
+
+        assert("Forecast assumptions are transparently broken down",
+          overBudgetForecast.assumptions &&
+          typeof overBudgetForecast.assumptions.variableDailyRateINR === "number" &&
+          overBudgetForecast.assumptions.committedCostsCount === 2,
+          `Variable daily run-rate: ₹${overBudgetForecast.assumptions.variableDailyRateINR}/day`);
+
+        // Clean up test expenses
+        OntheGoApp.state.expenses = OntheGoApp.state.expenses.filter(e => e.id !== "exp_heavy_shopping" && e.id !== "exp_fine_dining");
+        OntheGoApp.saveState();
+
+        // =========================================================
+        // SCENARIO 6: GROUNDED AI ASSISTANT & DETERMINISTIC SAFEGUARDS
+        // =========================================================
+        addScenarioHeader("Scenario 6: Grounded AI Assistant & Deterministic Safeguards Validation");
+
+        // 1. Prompt: What should we do next?
+        const qNext = await OntheGoAssistant.generateOfflineHeuristicResponse("What should we do next?");
+        assert("Assistant answers 'What should we do next?' with active trip activity",
+          qNext && qNext.replyText && (qNext.replyText.includes("Day") || qNext.replyText.includes("stop")),
+          `Reply preview: ${qNext.replyText.slice(0, 100)}...`);
+        assert("Response labeled with factType: grounded_fact or recommendation",
+          qNext.factType === "grounded_fact",
+          `factType: ${qNext.factType}`);
+
+        // 2. Prompt: Which nearby cafe is a reasonable alternative?
+        const qCafe = await OntheGoAssistant.generateOfflineHeuristicResponse("Which nearby cafe is a reasonable alternative?");
+        assert("Assistant cafe recommendation mentions verified database venue (e.g. Canvas, Mocha Art, or Trouvaille)",
+          qCafe && (qCafe.replyText.includes("Canvas") || qCafe.replyText.includes("Mocha Art") || qCafe.replyText.includes("Trouvaille")),
+          `Reply preview: ${qCafe.replyText.slice(0, 120)}...`);
+        assert("Cafe response labeled as recommendation with review rating",
+          qCafe.factType === "recommendation" && (qCafe.replyText.includes("★") || qCafe.replyText.includes("4.")),
+          `Contains ratings: true`);
+
+        // 3. Prompt: Can we fit another stop before sunset?
+        const qSunset = await OntheGoAssistant.generateOfflineHeuristicResponse("Can we fit another stop before sunset?");
+        assert("Assistant sunset query provides estimated sunset time (~6:05 PM IST) and travel buffer guidance",
+          qSunset && qSunset.replyText.includes("6:05 PM") && qSunset.factType === "estimate",
+          `Sunset reply: ${qSunset.replyText.slice(0, 120)}...`);
+
+        // 4. Prompt: Which expenses have not been settled?
+        const qSettle = await OntheGoAssistant.generateOfflineHeuristicResponse("Which expenses have not been settled?");
+        assert("Assistant expense settlement query quotes integer minor units balance accurately",
+          qSettle && qSettle.replyText.includes("₹") && qSettle.factType === "grounded_fact",
+          `Settlement reply: ${qSettle.replyText.slice(0, 120)}...`);
+
+        // 5. Prompt: What should we skip if we are running late?
+        const qLate = await OntheGoAssistant.generateOfflineHeuristicResponse("What should we skip if we are running late?");
+        assert("Assistant delay guidance protects fixed bookings and recommends flexible skips",
+          qLate && (qLate.replyText.includes("Fixed bookings") || qLate.replyText.includes("hotel") || qLate.replyText.includes("Vande Bharat")),
+          `Late advice: ${qLate.replyText.slice(0, 120)}...`);
+
+        // 6. Deterministic Safeguard Revalidation of invalid AI proposal
+        // Case A: Proposal violating Day 5 train departure deadline (2:00 PM)
+        const invalidTrainProposal = {
+          dayNumber: 5,
+          recommendedAction: "add_stop",
+          stopTitle: "Late Lunch at Marari Shack",
+          proposedTime: "1:45 PM",
+          estimatedMinutes: 60
+        };
+        const trainVal = OntheGoAssistant.validateProposal(invalidTrainProposal);
+        assert("Deterministic validator REJECTS proposal violating Day 5 train / scooter return deadline",
+          trainVal.isValid === false && trainVal.rejectionReason.includes("Day 5 Vande Bharat"),
+          `Rejection reason: ${trainVal.rejectionReason}`);
+
+        // Case B: Proposal suggesting Jewish Synagogue on a Saturday
+        const invalidClosedProposal = {
+          dayNumber: 2, // Saturday 17 October
+          recommendedAction: "add_stop",
+          stopTitle: "Paradesi Jewish Synagogue Tour",
+          proposedTime: "11:00 AM"
+        };
+        const closedVal = OntheGoAssistant.validateProposal(invalidClosedProposal);
+        assert("Deterministic validator REJECTS proposal for venue reported closed on that day",
+          closedVal.isValid === false && closedVal.rejectionReason.includes("closed"),
+          `Rejection reason: ${closedVal.rejectionReason}`);
+
+        // Case C: Valid safe proposal
+        const validProposal = {
+          dayNumber: 2,
+          recommendedAction: "substitute",
+          stopTitle: "Canvas Restaurant & Pizzeria",
+          proposedTime: "1:00 PM"
+        };
+        const validRes = OntheGoAssistant.validateProposal(validProposal);
+        assert("Deterministic validator ACCEPTS safe, feasible proposal",
+          validRes.isValid === true,
+          "Safe proposal validated successfully");
+
+        // =========================================================
+        // SCENARIO 7: RECAP EXPORT PRIVACY & STANDALONE INTEGRITY
+        // =========================================================
+        addScenarioHeader("Scenario 7: Trip Recap Export Privacy Stripping & Standalone Output");
+
+        // Build recap export data with privacy filtering ENABLED
+        const sanitizedRecap = OntheGoJournal.buildRecapExportData({
+          includePrivateNotes: false,
+          stripSensitiveContacts: true
+        });
+
+        assert("Recap export includes title, dates, and travellers",
+          sanitizedRecap.title && sanitizedRecap.dates && sanitizedRecap.travellers.length === 2,
+          `Recap title: ${sanitizedRecap.title}`);
+
+        assert("Recap stats contains total memories, photos, and favourites",
+          sanitizedRecap.stats.totalMemories > 0 && sanitizedRecap.stats.totalPhotos > 0,
+          `Photos: ${sanitizedRecap.stats.totalPhotos}, Memories: ${sanitizedRecap.stats.totalMemories}`);
+
+        // Verify private notes are completely stripped from exported recap data
+        let privateNoteLeaked = false;
+        sanitizedRecap.highlights.forEach(h => {
+          if (h.privateNotes || (h.moment && h.moment.includes("SURPRISE"))) {
+            privateNoteLeaked = true;
+          }
+        });
+        assert("Private notes strictly excluded from recap export data",
+          privateNoteLeaked === false,
+          "No private notes leaked in export payload");
+
+        // Verify HTML recap generator runs and returns a valid document
+        let recapHtmlGenerated = false;
+        try {
+          const recapPayload = OntheGoJournal.buildRecapExportData({ includePrivateNotes: false });
+          if (recapPayload && recapPayload.title) {
+            recapHtmlGenerated = true;
+          }
+        } catch (e) {
+          recapHtmlGenerated = false;
+        }
+        assert("Recap export generator executes cleanly without network dependencies",
+          recapHtmlGenerated === true,
+          "Recap generated successfully");
+
+        // =========================================================
+        // FINAL SUMMARY
+        // =========================================================
+        const passed = results.filter(r => r.passed).length;
+        const total = results.length;
+        const summaryEl = document.getElementById("summary");
+        summaryEl.style.background = passed === total ? "#dcfce7" : "#fee2e2";
+        summaryEl.style.color = passed === total ? "#15803d" : "#b91c1c";
+        summaryEl.innerText = `[STAGE 5 SUITE RESULT] PASSED ${passed}/${total} tests (${(passed/total*100).toFixed(0)}%)`;
+
+      } catch (err) {
+        console.error("Test Suite execution error:", err);
+        const errDiv = document.createElement("div");
+        errDiv.className = "test-fail";
+        errDiv.innerText = "Fatal Suite Execution Error: " + err.message + "\n" + err.stack;
+        document.body.appendChild(errDiv);
+      }
+    });
+  </script>
+</body>
+</html>

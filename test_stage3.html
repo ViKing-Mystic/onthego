@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OntheGO Stage 3 Automated Verification Suite</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #faf7f2; color: #182320; }
+    h1 { color: #0d828a; }
+    .test-pass { color: #15803d; font-weight: bold; }
+    .test-fail { color: #dc2626; font-weight: bold; }
+    .test-row { padding: 6px 0; border-bottom: 1px solid #e5ded2; font-size: 14px; }
+    #summary { margin-top: 20px; font-size: 18px; font-weight: bold; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🛵 OntheGO Stage 3 Test Suite</h1>
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <!-- Mock Leaflet to avoid external network requests -->
+  <script>window.L = { map: () => ({ setView: () => ({ addTo: () => {} }), fitBounds: () => {} }), tileLayer: () => ({ addTo: () => {} }), marker: () => ({ addTo: () => ({ bindPopup: () => {} }) }), polyline: () => ({ addTo: () => {} }), latLngBounds: () => ({ extend: () => {} }), icon: () => ({}) };</script>
+
+  <!-- Load dependencies in exact order -->
+  <script src="./js/data.js"></script>
+  <script src="./js/migrations.js"></script>
+  <script src="./js/collaboration.js"></script>
+  <script src="./js/reminders.js"></script>
+  <script src="./js/engine.js"></script>
+  <script src="./js/weather.js"></script>
+  <script src="./js/ai_adjustments.js"></script>
+  <script src="./js/timehelper.js"></script>
+  <script src="./js/itinerary.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/expenses.js"></script>
+  <script src="./js/backups.js"></script>
+  <script src="./js/restaurants.js"></script>
+  <script src="./js/checklist.js"></script>
+  <script src="./js/wallet.js"></script>
+  <script src="./js/app.js"></script>
+
+  <script>
+    const results = [];
+    function assert(name, condition, details = "") {
+      results.push({ name, passed: !!condition, details });
+      const row = document.createElement("div");
+      row.className = "test-row";
+      row.innerHTML = `<span class="${condition ? 'test-pass' : 'test-fail'}">${condition ? '✓ PASS' : '✗ FAIL'}</span>: <b>${name}</b> ${details ? '(' + details + ')' : ''}`;
+      document.getElementById("test-results").appendChild(row);
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        // Reset state for deterministic test run
+        OntheGoApp.state = OntheGoMigrations.getFreshDefaultState();
+        OntheGoApp.saveState();
+        OntheGoReminders.init();
+        OntheGoEngine.init();
+        OntheGoWeather.init();
+        OntheGoAiAdjustments.init();
+        OntheGoBackups.init();
+
+        // ---------------------------------------------------------
+        // 1. DEPARTURE & ACTIVITY REMINDERS
+        // ---------------------------------------------------------
+        const reminders = OntheGoApp.state.reminders;
+        assert("Reminders synchronized from itinerary", Array.isArray(reminders) && reminders.length > 0);
+
+        const trainReminder = reminders.find(r => r.activityId === "act-5-8");
+        assert("Day 5 Vande Bharat departure reminder created", !!trainReminder);
+        assert("Train departure marked as hard constraint", trainReminder?.isHardConstraint === true);
+        assert("Train departure lead time is 60 mins", trainReminder?.triggerMinutesBefore === 60);
+
+        const stayReminder = reminders.find(r => r.category === "checkin");
+        assert("Accommodation check-in reminder created", !!stayReminder);
+
+        // Test Quiet Hours check
+        // 23:30 (11:30 PM) should be in quiet hours (22:30 - 06:30)
+        const lateNightDate = new Date("2026-10-16T23:30:00+05:30");
+        assert("23:30 IST recognized in quiet hours", OntheGoReminders.isInQuietHours(lateNightDate) === true);
+
+        // 10:00 AM should NOT be in quiet hours
+        const morningDate = new Date("2026-10-16T10:00:00+05:30");
+        assert("10:00 AM IST recognized as active daytime", OntheGoReminders.isInQuietHours(morningDate) === false);
+
+        // Snooze functionality
+        if (trainReminder) {
+          OntheGoReminders.snoozeReminder(trainReminder.id, 15);
+          assert("Reminder status updated to snoozed", trainReminder.status === "snoozed");
+          assert("Reminder snoozedUntil timestamp recorded", !!trainReminder.snoozedUntil);
+
+          OntheGoReminders.dismissReminder(trainReminder.id);
+          assert("Reminder status updated to dismissed", trainReminder.status === "dismissed");
+        }
+
+        // Duplicate prevention test
+        const countBefore = OntheGoApp.state.notifications.length;
+        OntheGoReminders.createActionableNotification({
+          type: "departure_reminder",
+          title: "Vande Bharat Boarding Alert",
+          reason: "Departing in 60 mins",
+          relevantTime: new Date().toISOString(),
+          source: "Fixed Commitment",
+          recommendedActionText: "Reach Platform 1"
+        });
+        OntheGoReminders.createActionableNotification({
+          type: "departure_reminder",
+          title: "Vande Bharat Boarding Alert",
+          reason: "Departing in 60 mins",
+          relevantTime: new Date().toISOString(),
+          source: "Fixed Commitment",
+          recommendedActionText: "Reach Platform 1"
+        });
+        const countAfter = OntheGoApp.state.notifications.length;
+        assert("Duplicate actionable notification prevented", countAfter === countBefore + 1);
+
+        // ---------------------------------------------------------
+        // 2. SCHEDULE FEASIBILITY ENGINE & FORWARD DELAY SIMULATION
+        // ---------------------------------------------------------
+        // Baseline Day 5 feasibility (0 delay should be feasible)
+        const day5Baseline = OntheGoEngine.analyzeDayFeasibility("day-5", 0);
+        assert("Day 5 baseline schedule is feasible", day5Baseline.feasible === true, JSON.stringify(day5Baseline.issues));
+
+        // Forward simulate a 50-minute delay on Day 5 at act-5-4 (Indo-Portuguese Museum)
+        const day5Delayed = OntheGoEngine.analyzeDayFeasibility("day-5", 50, "act-5-4");
+        assert("Day 5 with 50m delay flagged as infeasible", day5Delayed.feasible === false);
+        const hasScooterBreach = day5Delayed.issues.some(i => i.activityId === "act-5-6" && i.type === "hard_constraint_violation");
+        assert("Scooter return 1:30 PM deadline breach correctly detected", hasScooterBreach, JSON.stringify(day5Delayed.issues));
+
+        // Test venue closure detection: Paradesi Synagogue (act-1-5) on Friday afternoon
+        // If delayed to 2:15 PM, synagogue should be flagged as closed
+        const day1Delayed = OntheGoEngine.analyzeDayFeasibility("day-1", 60, "act-1-4");
+        const synagogueClosed = day1Delayed.issues.some(i => i.activityId === "act-1-5" && i.type === "venue_closed");
+        assert("Paradesi Synagogue Friday 2:00 PM Sabbath closure flagged when delayed", synagogueClosed);
+
+        // Generate feasible recommendation for Day 5
+        const rec = OntheGoEngine.generateRecommendation("day-5", 45);
+        assert("Recommendation generated for Day 5 delay", !!rec);
+        assert("Recommendation preserves train departure", rec.preservedBookings.some(b => b.includes("Vande Bharat")));
+        assert("Recommendation preserves scooter return", rec.preservedBookings.some(b => b.includes("Scooter Return")));
+        assert("Recommendation proposes shortening or skipping optional stops", rec.actions.length > 0);
+        assert("Recommendation requires pending approval", rec.status === "pending_approval");
+
+        // Verify active itinerary is NOT modified before approval
+        const day5Current = OntheGoApp.getActiveTrip().days.find(d => d.id === "day-5");
+        const act55 = day5Current.activities.find(a => a.id === "act-5-5");
+        assert("Active itinerary untouched before explicit approval", act55?.status !== "skipped");
+
+        // Verify master baseline in OntheGoDefaultData is NEVER modified
+        const defaultDay5 = OntheGoDefaultData.trips[0].days.find(d => d.id === "day-5");
+        assert("Master baseline in OntheGoDefaultData strictly preserved", defaultDay5.activities.length === day5Current.activities.length);
+
+        // Test recommendation approval
+        OntheGoApp.state.activeRecommendations = [rec];
+        OntheGoEngine.applyRecommendation(rec.id);
+        assert("Recommendation marked approved after user action", rec.status === "approved");
+
+        // ---------------------------------------------------------
+        // 3. LIVE TRAVEL & ROUTING ESTIMATOR
+        // ---------------------------------------------------------
+        const fromAct = { id: "test-1", title: "Fort House", lat: 9.9682, lng: 76.2482, location: "Fort Kochi" };
+        const toAct = { id: "test-2", title: "Calvin's Inn", lat: 9.9654, lng: 76.2423, location: "Calvathy Rd" };
+        const leg = await OntheGoEngine.getTravelLeg(fromAct, toAct);
+        assert("Travel leg computed between stops", !!leg && leg.distanceKm > 0);
+        assert("Travel leg includes uncertainty buffer", leg.uncertaintyBufferMins >= 8);
+        assert("Total duration with buffer calculated", leg.totalDurationWithBufferMins > leg.durationMins);
+        assert("Google Maps navigation link provided", leg.navigationUrl.includes("google.com/maps/dir"));
+        assert("Routing result cached", !!OntheGoApp.state.routingCache[`${fromAct.id}_to_${toAct.id}`]);
+
+        // ---------------------------------------------------------
+        // 4. WEATHER & COASTAL DISRUPTION MONITORING
+        // ---------------------------------------------------------
+        const risks = OntheGoWeather.evaluateCoastalRisks();
+        assert("Coastal activity risks evaluated", Array.isArray(risks) && risks.length >= 4);
+
+        const kayakRisk = OntheGoWeather.getRiskForActivity("act-3-1");
+        assert("Opulence Kayaking risk assessed", !!kayakRisk);
+        assert("Kayaking advisory includes operator phone 8921172358", kayakRisk.operatorContact?.includes("8921172358"));
+
+        const beachRisk = OntheGoWeather.getRiskForActivity("act-3-3");
+        assert("Marari Beach swimming advisory cautions against undertow", beachRisk?.advisoryDetails.includes("undertow"));
+        assert("Beach advisory warns that favourable weather does NOT guarantee safety", beachRisk?.recommendation.includes("does NOT guarantee"));
+
+        const coastalRideRisk = OntheGoWeather.getRiskForActivity("act-2-6");
+        assert("Chellanam coastal road surge risk assessed", !!coastalRideRisk);
+
+        // ---------------------------------------------------------
+        // 5. STRUCTURED BACKUP DATABASE & MULTI-CRITERIA RANKING
+        // ---------------------------------------------------------
+        const backups = OntheGoApp.state.backupDatabase;
+        assert("Backup database populated with structured records", Array.isArray(backups) && backups.length >= 10);
+
+        const sampleBackup = backups[0];
+        assert("Backup has verified coordinates", typeof sampleBackup.lat === "number" && typeof sampleBackup.lng === "number");
+        assert("Backup has rating and review provider", sampleBackup.rating > 0 && !!sampleBackup.ratingProvider);
+        assert("Backup has pricing range and pricing source", !!sampleBackup.priceRange && !!sampleBackup.pricingSource);
+        assert("Backup has opening hours and closure days", !!sampleBackup.openingHours && Array.isArray(sampleBackup.closureDays));
+        assert("Backup has suitability replacement targets", Array.isArray(sampleBackup.suitableReplacements) && sampleBackup.suitableReplacements.length > 0);
+
+        // Test "not verified" labeling for unconfirmed phone
+        const unverifiedPhoneBackup = backups.find(b => b.phone === "not verified");
+        assert("Unconfirmed contact detail explicitly shows 'not verified'", !!unverifiedPhoneBackup);
+
+        // Test Multi-Criteria Scoring
+        const targetStop = { id: "act-1-4", title: "The Warehouse Cafe", category: "Cafe", lat: 9.9654, lng: 76.2423 };
+        const testDay = { dayNumber: 1 }; // Friday
+        const score1 = OntheGoBackups.scoreAlternative(backups[1], targetStop, testDay); // David Hall Cafe
+        assert("Alternative scored across multi-criteria dimensions", score1 && score1.totalScore > 0);
+        assert("Proximity and review scores broken down", score1.scoreBreakdown.proximityScore > 0 && score1.scoreBreakdown.reviewScore > 0);
+
+        // Closure day scoring (Monday closure on Bastion Bungalow tested on Day 4 Monday)
+        const mondayDay = { dayNumber: 4 };
+        const scoreMonday = OntheGoBackups.scoreAlternative(backups[0], targetStop, mondayDay);
+        assert("Venue closed on Monday receives 0 availability score", scoreMonday.scoreBreakdown.availabilityScore === 0);
+        assert("Venue flagged as closed today on Monday", scoreMonday.isClosedToday === true);
+
+        // ---------------------------------------------------------
+        // 5b. VERIFIED & USER-PROVIDED CANDIDATE BACKUPS
+        // ---------------------------------------------------------
+        assert("Backup database populated with >= 25 candidate records", backups.length >= 25, `Count: ${backups.length}`);
+
+        // 1. Canvas Restaurant & Pizzeria
+        const bkCanvas = backups.find(b => b.id === "bk-canvas");
+        assert("Canvas Restaurant candidate record present", !!bkCanvas);
+        assert("Canvas has rating 4.7 & ~2,470 reviews", bkCanvas?.rating === 4.7 && bkCanvas?.reviewCount === 2470);
+        assert("Canvas has Vadathazha Lane address & phone +91 73561 14909", bkCanvas?.phone === "+91 73561 14909" && bkCanvas?.address?.includes("Vadathazha Lane"));
+        assert("Canvas reported hours 12:30 PM - 12:00 AM", bkCanvas?.openingHours?.includes("12:30 PM"));
+
+        // 2. Mocha Art Café
+        const bkMocha = backups.find(b => b.id === "bk-mocha");
+        assert("Mocha Art Café candidate present with 4.5 rating & 1770 reviews", bkMocha?.rating === 4.5 && bkMocha?.reviewCount === 1770);
+        assert("Mocha Art Café has Synagogue Lane Jew Town address & contact", bkMocha?.phone === "+91 98479 14437" && bkMocha?.address?.includes("Synagogue Lane"));
+        assert("Mocha Art Café notes recommend grouping with Dutch Palace", bkMocha?.notes?.includes("Dutch Palace"));
+
+        // 3. Trouvaille
+        const bkTrouvaille = backups.find(b => b.id === "bk-trouvaille");
+        assert("Trouvaille dessert stop candidate present (4.6 rating, 1315 reviews)", bkTrouvaille?.rating === 4.6 && bkTrouvaille?.reviewCount === 1315);
+        assert("Trouvaille contact +91 7406 339 555 and Princess Street address", bkTrouvaille?.phone === "+91 7406 339 555" && bkTrouvaille?.address?.includes("Princess Street"));
+
+        // 4. Qissa Café
+        const bkQissa = backups.find(b => b.id === "bk-qissa");
+        assert("Qissa Café candidate present (4.2 rating, 2380 reviews)", bkQissa?.rating === 4.2 && bkQissa?.reviewCount === 2380);
+        assert("Qissa Café contact +91 96053 22680 & Hotel 18 address", bkQissa?.phone === "+91 96053 22680" && bkQissa?.address?.includes("Hotel 18"));
+        assert("Qissa Café opening hours conflict warning recorded", bkQissa?.notes?.includes("10:30 AM opening may conflict"));
+
+        // 5. Loafers Corner Café
+        const bkLoafers = backups.find(b => b.id === "bk-loafers");
+        assert("Loafers Corner Café candidate present (4.3 rating, 2950 reviews)", bkLoafers?.rating === 4.3 && bkLoafers?.reviewCount === 2950);
+        assert("Loafers contact +91 98951 54351 & Princess Street location", bkLoafers?.phone === "+91 98951 54351" && bkLoafers?.address?.includes("Princess Street"));
+
+        // 6. Fort Paragon Restaurant
+        const bkParagon = backups.find(b => b.id === "bk-paragon");
+        assert("Fort Paragon candidate present (4.5 rating, 2990 reviews)", bkParagon?.rating === 4.5 && bkParagon?.reviewCount === 2990);
+        assert("Fort Paragon contact +91 97457 55519 & dinner hours", bkParagon?.phone === "+91 97457 55519" && bkParagon?.openingHours?.includes("11:00 PM"));
+
+        // 7. Hotel Brothers
+        const bkBrothers = backups.find(b => b.id === "bk-brothers");
+        assert("Hotel Brothers candidate present (4.2 rating, 9010 reviews)", bkBrothers?.rating === 4.2 && bkBrothers?.reviewCount === 9010);
+        assert("Hotel Brothers contact +91 477 223 8844 & General Hospital Road address", bkBrothers?.phone === "+91 477 223 8844" && bkBrothers?.address?.includes("General Hospital"));
+        assert("Hotel Brothers notes identify town-side stop rather than coastal detour", bkBrothers?.notes?.toLowerCase().includes("town-side food stop"));
+
+        // 8. Puttum Kattanum
+        const bkPuttum = backups.find(b => b.id === "bk-puttum-kattanum");
+        assert("Puttum Kattanum candidate present (4.3 rating, 4970 reviews)", bkPuttum?.rating === 4.3 && bkPuttum?.reviewCount === 4970);
+        assert("Puttum Kattanum contact +91 96336 08009 & 24 hours notice", bkPuttum?.phone === "+91 96336 08009" && bkPuttum?.openingHours?.toLowerCase().includes("24 hours"));
+
+        // 9. Borma Cafe
+        const bkBorma = backups.find(b => b.id === "bk-borma");
+        assert("Borma Cafe candidate present (4.5 rating, 950 reviews)", bkBorma?.rating === 4.5 && bkBorma?.reviewCount === 950);
+        assert("Borma Cafe contact +91 97460 55099 & Zilla Court Ward address", bkBorma?.phone === "+91 97460 55099" && bkBorma?.address?.includes("Zilla Court Ward"));
+
+        // 10. Cafe Crafters (Special Handling: Reported Permanently Closed)
+        const bkCrafters = backups.find(b => b.id === "bk-crafters");
+        assert("Cafe Crafters candidate recorded with status 'reported_closed'", bkCrafters?.status === "reported_closed");
+        assert("Cafe Crafters explicitly tagged with 'Verify before visiting'", bkCrafters?.tags?.includes("Verify before visiting"));
+        const scoreCrafters = OntheGoBackups.scoreAlternative(bkCrafters, targetStop, testDay);
+        assert("Cafe Crafters receives totalScore 0 and isClosedToday flag", scoreCrafters?.totalScore === 0 && scoreCrafters?.isClosedToday === true);
+
+        // 11. Cafe Jew Town (Special Handling: Low Priority)
+        const bkJowTown = backups.find(b => b.id === "bk-jewtown");
+        assert("Cafe Jew Town recorded with status 'low_priority' and 3.7 rating", bkJowTown?.status === "low_priority" && bkJowTown?.rating === 3.7);
+        const scoreJewTown = OntheGoBackups.scoreAlternative(bkJowTown, targetStop, testDay);
+        assert("Cafe Jew Town receives priority penalty in scoring", scoreJewTown?.scoreBreakdown?.priorityScore < 0);
+
+        // 12. CoCo MoCo (Special Handling: Mavelikkara inland location)
+        const bkCoco = backups.find(b => b.id === "bk-cocomoco");
+        assert("CoCo MoCo recorded with status 'low_priority' in Mavelikkara (~35 km inland)", bkCoco?.status === "low_priority" && bkCoco?.address?.includes("Mavelikkara"));
+
+        // 13. Lemon Dew (Special Handling: Guesthouse Stay needing verification)
+        const bkLemon = backups.find(b => b.id === "bk-lemondew");
+        assert("Lemon Dew recorded under category 'Stay' with status 'needs_verification'", bkLemon?.category === "Stay" && bkLemon?.status === "needs_verification");
+
+        // 14. Kashi Art Café (Special Handling: Retained as primary Day 5 brunch, NOT a backup)
+        const bkKashi = backups.find(b => b.id === "bk-kashi" || b.title?.includes("Kashi Art"));
+        assert("Kashi Art Café is NOT present in backupDatabase (avoids circular backup)", !bkKashi);
+
+        const day5 = OntheGoApp.state.trips[0].days.find(d => d.dayNumber === 5 || d.id === "day-5");
+        const kashiStop = day5?.activities?.find(a => a.id === "act-5-3");
+        assert("Kashi Art Café is retained as primary Day 5 brunch stop", !!kashiStop);
+        assert("Kashi Art Café has Burger Street address & contact +91 484 221 5769", kashiStop?.address?.includes("Burger Street") && kashiStop?.phone === "+91 484 221 5769");
+        assert("Kashi Art Café has 4.2 rating with ~11,380 reviews", kashiStop?.rating === 4.2 && kashiStop?.reviewCount === 11380);
+
+        // 15. Safe State Migration v6 -> v7 non-destructive candidate merge
+        const mockV6State = {
+          schemaVersion: 6,
+          trips: OntheGoApp.state.trips,
+          backupDatabase: [
+            { id: "custom-user-stop", title: "Custom User Secret Spot", category: "Cafe", lat: 9.96, lng: 76.24 }
+          ]
+        };
+        const migratedState = OntheGoMigrations.migrate(mockV6State);
+        assert("Migration to schema 7 preserves custom user stops in backupDatabase", migratedState.backupDatabase.some(b => b.id === "custom-user-stop"));
+        assert("Migration to schema 7 merges new candidates into backupDatabase", migratedState.backupDatabase.some(b => b.id === "bk-canvas") && migratedState.backupDatabase.some(b => b.id === "bk-crafters"));
+        assert("Migrated state has schemaVersion >= 7", migratedState.schemaVersion >= 7);
+
+        // ---------------------------------------------------------
+        // 6. AI ITINERARY ADJUSTMENTS & DETERMINISTIC VALIDATION
+        // ---------------------------------------------------------
+        const context = OntheGoAiAdjustments.buildGroundedContext("day-5", 30);
+        assert("Grounded AI context compiled with constraints", !!context.hardConstraints && context.day5TrainDepartureSafeguard !== null);
+        assert("Travellers veto list included in context", Array.isArray(context.preferences.vetoList));
+
+        // Test deterministic validation: proposal attempting to violate train departure
+        const illegalProposal = {
+          proposedChanges: [
+            { activityId: "act-5-8", action: "skip", rationale: "Skip train to stay longer" }
+          ]
+        };
+        const invalidCheck = OntheGoAiAdjustments.validateProposal(illegalProposal, context);
+        assert("Deterministic validator REJECTS skipping fixed train departure", invalidCheck.isValid === false);
+        assert("Violation message identifies hard constraint breach", invalidCheck.violations.some(v => v.includes("cannot be skipped")));
+
+        // Test deterministic validation: proposal attempting to introduce vetoed activity
+        const vetoProposal = {
+          proposedChanges: [
+            { activityId: "act-1-4", action: "replace", substituteTitle: "Loose beach sand scooter ride", rationale: "Scenic ride" }
+          ]
+        };
+        const vetoContext = { ...context, preferences: { vetoList: ["loose beach sand"] } };
+        const vetoCheck = OntheGoAiAdjustments.validateProposal(vetoProposal, vetoContext);
+        assert("Deterministic validator REJECTS proposal violating traveller veto rule", vetoCheck.isValid === false);
+
+        // Test valid proposal (shorten meal)
+        const validProposal = {
+          proposedChanges: [
+            { activityId: "act-5-4", action: "shorten", newDurationMins: 35, rationale: "Quick coffee at Kashi Art Cafe" }
+          ]
+        };
+        const validCheck = OntheGoAiAdjustments.validateProposal(validProposal, context);
+        assert("Deterministic validator APPROVES valid meal shortening proposal", validCheck.isValid === true);
+
+        // Offline heuristic solver test
+        const heuristicProposal = OntheGoAiAdjustments.solveHeuristicCompression(context, 35);
+        assert("Offline heuristic solver successfully generated compression proposal", heuristicProposal && heuristicProposal.proposedChanges.length > 0);
+        const heuristicValidation = OntheGoAiAdjustments.validateProposal(heuristicProposal, context);
+        assert("Offline heuristic proposal passes deterministic validation 100%", heuristicValidation.isValid === true);
+
+        // ---------------------------------------------------------
+        // 7. OFFLINE RESILIENCE & SUMMARY
+        // ---------------------------------------------------------
+        // Test weather offline fallback
+        const offlineForecast = await OntheGoWeather.fetchDestinationForecast("kochi");
+        assert("Weather engine returns valid forecast offline/cached", !!offlineForecast && offlineForecast.current.temperature > 0);
+
+        // Test notification handling
+        const notif = OntheGoApp.state.notifications[0];
+        if (notif) {
+          OntheGoReminders.handleNotificationAction(notif.id, "snooze");
+          assert("Actionable notification snoozed successfully", notif.status === "snoozed");
+        }
+
+        // Summary
+        const passedCount = results.filter(r => r.passed).length;
+        const totalCount = results.length;
+        const allPassed = passedCount === totalCount;
+
+        const summaryEl = document.getElementById("summary");
+        summaryEl.style.background = allPassed ? "#dcfce7" : "#fee2e2";
+        summaryEl.style.color = allPassed ? "#15803d" : "#dc2626";
+        summaryEl.innerText = `Total Tests: ${totalCount} | Passed: ${passedCount} | Failed: ${totalCount - passedCount} | Result: ${allPassed ? "100% ALL TESTS PASSED ✓" : "FAILURES DETECTED"}`;
+
+        window.STAGE3_TEST_SUMMARY = {
+          total: totalCount,
+          passed: passedCount,
+          failed: totalCount - passedCount,
+          allPassed
+        };
+      } catch (err) {
+        console.error("Test execution error:", err);
+        assert("Global test execution uncaught error", false, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -49,6 +49,10 @@ window.OntheGoCollaboration = {
     this.renderCollaborationView();
   },
 
+  getActiveTraveller() {
+    return this.getCurrentTraveller();
+  },
+
   getCurrentTraveller() {
     const travellers = OntheGoApp.getTravellers();
     return travellers.find(t => t.id === this.activeTravellerId) || travellers[0] || {

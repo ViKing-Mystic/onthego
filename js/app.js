@@ -10,33 +10,70 @@ window.OntheGoApp = {
   activeMoreSubTab: "wallet",
   STORAGE_KEY: "onthego_master_state_v2",
 
-  init() {
-    this.loadState();
+  escapeHTML(str) {
+    if (window.OntheGoSecurity) return OntheGoSecurity.escapeHTML(str);
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  },
+
+  sanitizeURL(url) {
+    if (window.OntheGoSecurity) return OntheGoSecurity.sanitizeURL(url);
+    if (!url || typeof url !== "string") return null;
+    const lower = url.trim().toLowerCase();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) return null;
+    return url.trim();
+  },
+
+  async init() {
+    // Stage 4: Persistent IndexedDB storage initialization
+    if (window.OntheGoStorage) {
+      await OntheGoStorage.init();
+    }
+    await this.loadState();
     this.setupTheme();
     this.bindEvents();
+    if (window.OntheGoReliability) OntheGoReliability.init();
     this.setupConnectivity();
     this.setupServiceWorker();
 
     // Initialize sub-modules
     if (window.OntheGoCollaboration) OntheGoCollaboration.init();
+    if (window.OntheGoReminders) OntheGoReminders.init();
+    if (window.OntheGoEngine) OntheGoEngine.init();
+    if (window.OntheGoWeather) OntheGoWeather.init();
+    if (window.OntheGoAiAdjustments) OntheGoAiAdjustments.init();
+    if (window.OntheGoSyncEngine) OntheGoSyncEngine.init();
+    if (window.OntheGoVault) OntheGoVault.init();
     OntheGoItinerary.init();
     OntheGoExpenses.init();
     OntheGoChecklist.init();
     OntheGoWallet.init();
     OntheGoRestaurants.init();
+    if (window.OntheGoCatalogue) OntheGoCatalogue.init();
     OntheGoBackups.init();
     OntheGoTimeHelper.init();
+    if (window.OntheGoJournal) OntheGoJournal.init();
+    if (window.OntheGoReports) OntheGoReports.init();
+    if (window.OntheGoBudget) OntheGoBudget.init();
+    if (window.OntheGoAssistant) OntheGoAssistant.init();
+    this.renderAiSettingsCard();
 
     // Render dashboard and weather
     this.renderDashboard();
     this.fetchWeather();
   },
 
-  loadState() {
+  async loadState() {
     try {
+      let parsed = null;
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
+        parsed = JSON.parse(saved);
+      } else if (window.OntheGoStorage && OntheGoStorage.isReady) {
+        parsed = await OntheGoStorage.loadTripState();
+      }
+
+      if (parsed) {
         if (window.OntheGoMigrations && typeof OntheGoMigrations.migrate === "function") {
           this.state = OntheGoMigrations.migrate(parsed);
         } else {
@@ -64,9 +101,19 @@ window.OntheGoApp = {
   saveState() {
     try {
       if (this.state && !this.state.schemaVersion) {
-        this.state.schemaVersion = 5;
+        this.state.schemaVersion = (window.OntheGoMigrations && window.OntheGoMigrations.CURRENT_SCHEMA_VERSION) || 8;
       }
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.state));
+
+      // Asynchronously mirror state to IndexedDB for persistent storage
+      if (window.OntheGoStorage && OntheGoStorage.saveTripState) {
+        OntheGoStorage.saveTripState(this.state);
+      }
+
+      // Update sync and network indicators
+      if (window.OntheGoReliability && OntheGoReliability.updateNetworkUI) {
+        OntheGoReliability.updateNetworkUI();
+      }
     } catch (e) {
       console.error("Error saving state to localStorage:", e);
     }
@@ -218,11 +265,28 @@ window.OntheGoApp = {
     } else if (subTabId === "checklist") {
       OntheGoChecklist.init();
     } else if (subTabId === "wallet") {
-      OntheGoWallet.init();
+      if (window.OntheGoVault) OntheGoVault.renderVaultUI();
+      else OntheGoWallet.init();
+    } else if (subTabId === "sync-queue") {
+      if (window.OntheGoSyncEngine) OntheGoSyncEngine.renderSyncQueueUI();
     } else if (subTabId === "conflicts") {
       OntheGoTimeHelper.init();
     } else if (subTabId === "collaboration") {
       if (window.OntheGoCollaboration) OntheGoCollaboration.renderCollaborationView();
+    } else if (subTabId === "feasibility") {
+      if (window.OntheGoEngine) OntheGoEngine.renderFeasibilityHub();
+    } else if (subTabId === "reminders") {
+      if (window.OntheGoReminders) OntheGoReminders.renderRemindersUI();
+    } else if (subTabId === "journal") {
+      if (window.OntheGoJournal) OntheGoJournal.renderJournal();
+    } else if (subTabId === "reports") {
+      if (window.OntheGoReports) OntheGoReports.renderReportView();
+    } else if (subTabId === "budget") {
+      if (window.OntheGoBudget) OntheGoBudget.renderBudgetWidget();
+    } else if (subTabId === "assistant") {
+      if (window.OntheGoAssistant) OntheGoAssistant.renderChatUI();
+    } else if (subTabId === "settings") {
+      this.renderAiSettingsCard();
     }
   },
 
@@ -381,6 +445,15 @@ window.OntheGoApp = {
     const totalSpent = (this.state.expenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
     const expWidgetEl = document.getElementById("dashExpenseWidgetVal");
     if (expWidgetEl) expWidgetEl.innerText = `₹${totalSpent.toLocaleString('en-IN')}`;
+
+    // Stage 3: Render actionable notification banner, badge & weather widget
+    if (window.OntheGoReminders) {
+      OntheGoReminders.renderActionableNotificationsBanner();
+      OntheGoReminders.renderNotificationBadge();
+    }
+    if (window.OntheGoWeather) {
+      OntheGoWeather.renderWeatherWidget();
+    }
   },
 
   startTodayRoute() {
@@ -491,8 +564,191 @@ window.OntheGoApp = {
     OntheGoWallet.init();
     OntheGoBackups.init();
     if (window.OntheGoCollaboration) OntheGoCollaboration.init();
+    if (window.OntheGoJournal) OntheGoJournal.init();
+    if (window.OntheGoReports) OntheGoReports.init();
+    if (window.OntheGoBudget) OntheGoBudget.init();
+    if (window.OntheGoAssistant) OntheGoAssistant.init();
     this.renderDashboard();
+    this.renderAiSettingsCard();
     this.showToast("OntheGO reset to default verified itinerary. 🔄");
+  },
+
+  // ==========================================
+  // GOOGLE GEMINI & AI ASSISTANT CONFIGURATION
+  // ==========================================
+  openAiSettingsModal() {
+    this.switchTab("more");
+    this.switchMoreSubTab("settings");
+    const el = document.getElementById("aiSettingsCard");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+      el.style.boxShadow = "0 0 0 3px var(--coastal-turquoise)";
+      setTimeout(() => { el.style.boxShadow = ""; }, 1800);
+    }
+  },
+
+  setGeminiApiKey(apiKey, provider = "gemini") {
+    if (!this.state) this.state = {};
+    if (!this.state.aiSettings) {
+      this.state.aiSettings = {
+        provider: "offline",
+        apiKey: "",
+        model: "gemini-1.5-flash",
+        enabled: true
+      };
+    }
+    const cleanKey = (apiKey || "").trim();
+    this.state.aiSettings.apiKey = cleanKey;
+    this.state.aiSettings.provider = cleanKey ? provider : "offline";
+    this.saveState();
+
+    this.renderAiSettingsCard();
+    if (window.OntheGoAssistant && OntheGoAssistant.renderChatUI) {
+      OntheGoAssistant.renderChatUI();
+    }
+    this.showToast(cleanKey ? "Google Gemini API key activated! 🤖" : "Gemini API key cleared (Offline engine active)");
+  },
+
+  clearGeminiApiKey() {
+    this.setGeminiApiKey("", "offline");
+  },
+
+  saveAiSettingsFromUI() {
+    const input = document.getElementById("geminiApiKeyInput");
+    const providerSel = document.getElementById("aiProviderSelect");
+    const key = input ? input.value.trim() : "";
+    const provider = providerSel ? providerSel.value : (key ? "gemini" : "offline");
+
+    this.setGeminiApiKey(key, provider);
+    const statusEl = document.getElementById("aiApiKeyTestStatus");
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: var(--success); font-weight: 700;">✓ Settings saved successfully!</span>`;
+    }
+  },
+
+  async testGeminiConnectionFromUI() {
+    const input = document.getElementById("geminiApiKeyInput");
+    const key = input ? input.value.trim() : (this.state?.aiSettings?.apiKey || "");
+    await this.testGeminiConnection(key);
+  },
+
+  async testGeminiConnection(keyToTest) {
+    const key = (keyToTest || this.state?.aiSettings?.apiKey || "").trim();
+    const statusEl = document.getElementById("aiApiKeyTestStatus");
+    if (!key) {
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">⚠️ Please enter an API key first</span>`;
+      }
+      return false;
+    }
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: var(--info); font-weight: 600;">🔄 Testing connection to Google Gemini 1.5 Flash...</span>`;
+    }
+
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "Respond with the word 'OK' only." }] }],
+          generationConfig: { maxOutputTokens: 5 }
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const msg = errorData.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+        if (statusEl) {
+          statusEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">❌ Connection failed: ${msg}</span>`;
+        }
+        return false;
+      }
+
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color: var(--success); font-weight: 700;">✓ Connected to Gemini 1.5 Flash! Key is valid and active.</span>`;
+      }
+      return true;
+    } catch (err) {
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">❌ Network error: ${err.message}. Check internet connection.</span>`;
+      }
+      return false;
+    }
+  },
+
+  renderAiSettingsCard() {
+    const container = document.getElementById("aiSettingsContainer");
+    if (!container) return;
+
+    const ai = this.state?.aiSettings || { provider: "offline", apiKey: "", model: "gemini-1.5-flash" };
+    const hasKey = !!ai.apiKey;
+    const isGemini = ai.provider === "gemini" && hasKey;
+
+    container.innerHTML = `
+      <div class="stop-card" id="aiSettingsCard" style="border-left: 4px solid ${isGemini ? 'var(--ocean-teal)' : 'var(--sunset-amber)'}; transition: box-shadow 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800;">🤖 AI Assistant & Google Gemini Setup</h4>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+              Grounded conversational travel companion & schedule recovery
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: ${isGemini ? 'rgba(13, 130, 138, 0.15)' : 'rgba(201, 122, 20, 0.15)'}; color: ${isGemini ? 'var(--ocean-teal)' : 'var(--sunset-amber)'}; border: 1px solid ${isGemini ? 'var(--ocean-teal)' : 'var(--sunset-amber)'};">
+            ${isGemini ? '🟢 Gemini 1.5 Active' : '⚪ Offline Engine Active'}
+          </span>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+          OntheGO operates 100% offline with a built-in deterministic rules engine by default. Adding a Google Gemini API key enables natural-language reasoning and intelligent delay recovery during connectivity.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
+              Engine Provider
+            </label>
+            <select id="aiProviderSelect" class="form-input" style="width: 100%; font-size: 0.82rem; padding: 8px;">
+              <option value="gemini" ${ai.provider === 'gemini' ? 'selected' : ''}>Google Gemini 1.5 Flash (Online API)</option>
+              <option value="offline" ${ai.provider === 'offline' ? 'selected' : ''}>Deterministic Kerala Rules Engine (Offline / Free)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
+              Google Gemini API Key
+            </label>
+            <div style="display: flex; gap: 6px;">
+              <input type="password" id="geminiApiKeyInput" class="form-input" style="flex: 1; font-size: 0.82rem; font-family: monospace;" placeholder="AIzaSy..." value="${this.escapeHTML(ai.apiKey || '')}">
+              <button type="button" class="btn-sm" onclick="const f=document.getElementById('geminiApiKeyInput'); f.type = f.type === 'password' ? 'text' : 'password';" title="Toggle Visibility">👁️</button>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+              Key is stored securely in your browser's local storage and never transmitted to untrusted servers.
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button type="button" class="btn-primary-sm" onclick="OntheGoApp.saveAiSettingsFromUI()">
+            💾 Save Settings
+          </button>
+          <button type="button" class="btn-sm" onclick="OntheGoApp.testGeminiConnectionFromUI()">
+            🧪 Test Connection
+          </button>
+          ${hasKey ? `
+            <button type="button" class="btn-sm" style="color: var(--danger);" onclick="OntheGoApp.clearGeminiApiKey()">
+              🗑️ Remove Key
+            </button>
+          ` : ''}
+        </div>
+
+        <div id="aiApiKeyTestStatus" style="font-size: 0.78rem; margin-top: 8px;"></div>
+
+        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.74rem; color: var(--text-muted);">
+          🔑 Need a free API key? Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color: var(--ocean-teal); font-weight: 700; text-decoration: underline;">Google AI Studio</a>.
+        </div>
+      </div>
+    `;
   }
 };
 
